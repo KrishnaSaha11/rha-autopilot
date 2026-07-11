@@ -2,7 +2,16 @@ name: RHA Daily Autopost
 on:
   schedule:
     - cron: "30 5 * * *"   # 05:30 UTC = 11:00 AM IST
-  workflow_dispatch: {}      # manual "Run workflow" button for testing
+  workflow_dispatch:
+    inputs:
+      product:
+        description: "Product (blank = today's rotation)"
+        required: false
+        default: ""
+      force:
+        description: "Force post even if already posted today"
+        required: false
+        default: "false"
 
 permissions:
   contents: write            # to commit log.json + images back to repo
@@ -22,6 +31,8 @@ jobs:
       - name: Run autopost
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PRODUCT_OVERRIDE: ${{ github.event.inputs.product }}
+          FORCE: ${{ github.event.inputs.force }}
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           LINKEDIN_PERSON_URN: ${{ secrets.LINKEDIN_PERSON_URN }}
           WEBSITE_REPO: ${{ secrets.WEBSITE_REPO }}
