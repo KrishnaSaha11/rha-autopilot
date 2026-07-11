@@ -13,8 +13,9 @@ LI_TOKEN     = os.environ.get("LINKEDIN_ACCESS_TOKEN", "")
 LI_PERSON    = os.environ.get("LINKEDIN_PERSON_URN", "")   # e.g. urn:li:person:AbC123
 WEBSITE_REPO = os.environ.get("WEBSITE_REPO", "")        # e.g. KrishnaSaha11/rhaindia-website
 WEBSITE_PAT  = os.environ.get("WEBSITE_PAT", "")         # fine-grained PAT: Contents RW on that repo
-BLOG_DIR     = os.environ.get("BLOG_DIR", "src/content/blog")        # adjust to your Astro structure
-BLOG_IMG_DIR = os.environ.get("BLOG_IMG_DIR", "public/blog-images")  # adjust to your Astro structure
+BLOG_DIR     = os.environ.get("BLOG_DIR", "src/content/blog")
+BLOG_IMG_DIR = os.environ.get("BLOG_IMG_DIR", "public/images/blog")
+BLOG_CATEGORY = os.environ.get("BLOG_CATEGORY", "Guides")
 GOOGLE_SA_JSON = os.environ.get("GOOGLE_SA_JSON", "")    # service account key JSON (whole content)
 TG_TOKEN     = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT      = os.environ.get("TELEGRAM_CHAT_ID", "")
@@ -213,29 +214,40 @@ def gh_put(path, content_bytes, message):
     return r.json()
 
 def website_blog_post(data, img_path, date):
-    """Commits image + SEO markdown post to the website repo -> Vercel auto-deploys."""
-    slug = re.sub(r"[^a-z0-9]+", "-", (data.get("blogTitle") or data["headline"]).lower()).strip("-")[:70]
-    slug = f"{date}-{slug}"
+    """Commits image + SEO markdown post (rhaindiawebsite schema) -> Vercel auto-deploys."""
+    title = (data.get("blogTitle") or data["headline"])
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:70]
     img_web = None
     if img_path and os.path.exists(img_path):
         img_name = f"{slug}.png"
         with open(img_path, "rb") as f:
             gh_put(f"{BLOG_IMG_DIR}/{img_name}", f.read(), f"blog image {slug}")
-        img_web = f"/blog-images/{img_name}"
-    title = (data.get("blogTitle") or data["headline"]).replace('"', "'")
-    desc = re.sub(r"\s+", " ", data["caption"]).strip()[:155].replace('"', "'")
-    tags = [t.strip("#") for t in (data.get("hashtags", "").split()[:6])]
-    # NOTE (Krishna): match these frontmatter fields to your Astro content collection schema!
+        img_web = f"/images/blog/{img_name}"
+    caption = data["caption"]
+    words = len(caption.split())
+    read_time = f"{max(2, round(words / 200))} min read"
+    desc = re.sub(r"\s+", " ", caption).strip()
+    desc = "".join(ch for ch in desc if ord(ch) < 0x2600)[:155].strip().replace('"', "'")
+    t_clean = title.replace('"', "'")
+    t_noemoji = "".join(ch for ch in t_clean if ord(ch) < 0x2600).strip()
+    tags = [t.strip("#") for t in (data.get("hashtags", "").split()[:4])] or ["Rice Husk Ash"]
+    alt = (t_noemoji + " - Ambika Biotech RHA India").replace('"', "'")
     fm = ["---",
-          f'title: "{title}"',
+          f'title: "{t_noemoji}"',
           f'description: "{desc}"',
-          f"pubDate: {date}",
-          (f'heroImage: "{img_web}"' if img_web else ""),
+          f'category: "{BLOG_CATEGORY}"',
+          f"date: {date}",
+          f'readTime: "{read_time}"',
+          "featured: false",
+          (f'image: "{img_web}"' if img_web else 'image: "/images/products/rice-husk-ash-ground-powder.webp"'),
+          f'imageAlt: "{alt}"',
           "tags: [" + ", ".join(f'"{t}"' for t in tags) + "]",
+          f'seoTitle: "{t_noemoji[:55]} | Ambika Biotech"',
           "---", ""]
-    body = data["caption"] + "\n\n" + data.get("hashtags", "") + \
-           "\n\n📞 +91-7381757575 | 🌐 [www.rhaindia.com](https://www.rhaindia.com)\n"
-    md = "\n".join([l for l in fm if l != ""]) + "\n" + body
+    body = caption + "\n\n" + \
+           "\n\n**Contact us for bulk orders, OEM supply and export inquiries.**\n\n" + \
+           "📞 +91-7381757575 | 🌐 [www.rhaindia.com](https://www.rhaindia.com)\n"
+    md = "\n".join(fm) + body
     gh_put(f"{BLOG_DIR}/{slug}.md", md.encode(), f"blog post {slug}")
     return f"https://www.rhaindia.com/blog/{slug}"
 
