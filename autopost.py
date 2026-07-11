@@ -11,11 +11,11 @@ import requests
 GEMINI_KEY   = os.environ["GEMINI_API_KEY"].strip()
 LI_TOKEN     = os.environ.get("LINKEDIN_ACCESS_TOKEN", "")
 LI_PERSON    = os.environ.get("LINKEDIN_PERSON_URN", "")   # e.g. urn:li:person:AbC123
-WEBSITE_REPO = os.environ.get("WEBSITE_REPO", "")        # e.g. KrishnaSaha11/rhaindia-website
-WEBSITE_PAT  = os.environ.get("WEBSITE_PAT", "")         # fine-grained PAT: Contents RW on that repo
-BLOG_DIR     = os.environ.get("BLOG_DIR", "src/content/blog")
-BLOG_IMG_DIR = os.environ.get("BLOG_IMG_DIR", "public/images/blog")
-BLOG_CATEGORY = os.environ.get("BLOG_CATEGORY", "Guides")
+WEBSITE_REPO = (os.environ.get("WEBSITE_REPO") or "").strip()        # e.g. KrishnaSaha11/rhaindia-website
+WEBSITE_PAT  = (os.environ.get("WEBSITE_PAT") or "").strip()         # fine-grained PAT: Contents RW on that repo
+BLOG_DIR     = os.environ.get("BLOG_DIR") or "src/content/blog"
+BLOG_IMG_DIR = os.environ.get("BLOG_IMG_DIR") or "public/images/blog"
+BLOG_CATEGORY = os.environ.get("BLOG_CATEGORY") or "Guides"
 GOOGLE_SA_JSON = os.environ.get("GOOGLE_SA_JSON", "")    # service account key JSON (whole content)
 TG_TOKEN     = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT      = os.environ.get("TELEGRAM_CHAT_ID", "")
