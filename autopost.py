@@ -27,6 +27,17 @@ IMAGE_MODEL = "gemini-2.5-flash-image"   # Nano Banana (free tier)
 ROTATION = ["Rice Husk Ash Powder","Rice Husk Ash Granules","Rice Husk Ash Small Granules",
             "Rice Husk Ash Cylindrical Pellets","Rice Husk Powder","Rice Husk Pellets","Rice Husk"]
 
+# central contact configuration — edit config.json to change details everywhere
+try:
+    with open("config.json") as _f:
+        CONFIG = json.load(_f)
+except Exception:
+    CONFIG = {}
+COMPANY  = CONFIG.get("company", "Ambika Rice Mill & Ambika Biotech")
+WEBSITE  = CONFIG.get("website", "www.rhaindia.com")
+WEB_URL  = CONFIG.get("website_url", "https://www.rhaindia.com")
+PHONE    = CONFIG.get("phone", "+91-7381757575")
+
 LOG_PATH = "status/log.json"
 IMG_DIR  = "status/images"
 
@@ -53,15 +64,39 @@ PRODUCT FACT SHEET (STRICT — use ONLY the correct facts for the selected produ
 5. Rice Husk Powder = GROUND RAW HUSK (NOT ash!): cattle-feed-grade organic material (cellulose/lignin rich). PRIMARY use: cattle & animal feed filler/roughage carrier for feed mills. Secondary: oil & chemical absorbent, particle board & wood-polymer composites, incense stick base. Angle: feed-grade quality, consistent grind, bulk supply to feed mills & dairies. NEVER claim molten steel insulation or high SiO2 for this product.
 6. Rice Husk Pellets = DENSIFIED RAW HUSK BIOMASS FUEL (NOT ash!): calorific value approx 3,200-3,800 kcal/kg, low ash vs coal, renewable boiler/industrial fuel, co-firing, gasification feedstock. Angle: energy cost saving, carbon reduction vs coal, consistent pellet sizing. NEVER claim steel insulation or high SiO2.
 7. Rice Husk (raw) = loose husk: biomass fuel/boiler feedstock, poultry & cattle bedding, packing material, horticulture growing media, and the raw material for RHA production. NEVER claim steel insulation or high SiO2.
-For products 5-7 the target buyers shift to: biomass energy plants, boiler operators, feed mills & dairies (cattle feed), board manufacturers, poultry farms, horticulture — adjust industries, keywords and hashtags accordingly (keep brand tags)."""
+For products 5-7 the target buyers shift to: biomass energy plants, boiler operators, feed mills & dairies (cattle feed), board manufacturers, poultry farms, horticulture — adjust industries, keywords and hashtags accordingly (keep brand tags).
+INDUSTRY ANGLE BANK (rotate across days — pick ONE industry angle per post matching the product; cite sources naturally like "According to research published in..." — builds B2B credibility):
+1. STEEL: ladle covering compound reduces radiation heat loss on liquid steel before continuous casting (source: IspatGuru); RHA used as insulation powder in steel mills (Wikipedia, Rice hull).
+2. ROAD CONSTRUCTION / NHAI-PWD contractors & RMC plants: fine amorphous silica gives compact concrete, penetrates fine cracks better than cement-sand (Wikipedia); RHA below 700C combustion stays amorphous, usable in cement (ScienceDirect).
+3. CONSTRUCTION / CONCRETE: RHA Blaine fineness ~3600 vs cement 2800-3000; research shows up to 30% cement replacement with ~40% CO2 reduction and improved chloride/acid resistance (MDPI Sustainability 2025). Position as SCM / pozzolanic material.
+4. REFRACTORY & CERAMICS: silica source for silicates, zeolites, insulators, lightweight materials (Taylor & Francis 2018); centuries of use in ceramic glazes in China/Japan, ~95% silica aids early glaze melting (Wikipedia).
+5. RUBBER & TYRE: Goodyear publicly announced rice husk ash silica as tire additive (Wikipedia) — credible mainstream validation; silica as reinforcing agent in rubber/plastics (ScienceDirect 2023).
+6. AGRICULTURE (for raw husk / husk products only): soil ameliorant, growing substrate, water retention (Wikipedia).
+7. WATER TREATMENT & ADSORPTION: high-purity silica from RHA used for heavy-metal remediation and gas adsorption (IJTECH 2020).
+CITATION RULES (STRICT): Only cite the facts listed above with their sources. NEVER invent specific rupee savings, percentage improvements, or performance numbers that are not in the fact sheet or this bank. Qualitative benefit claims (reduces heat loss, lowers cement demand, improves durability) are fine; fabricated statistics are FORBIDDEN — technical buyers verify claims.
+Contact in every post: {WEBSITE_PLACEHOLDER} and phone {PHONE_PLACEHOLDER} (EXACTLY these). 
+EVIDENCE LEVEL SYSTEM (every factual claim must belong to one level; anything outside is FORBIDDEN):
+Level A = peer-reviewed sources listed in the INDUSTRY ANGLE BANK (MDPI, Taylor & Francis, ScienceDirect, IJTECH) — cite them by name.
+Level B = industry sources in the bank (IspatGuru, Wikipedia Rice hull).
+Level C = Ambika's own verified specs from the PRODUCT FACT SHEET (e.g. 90%+ SiO2, sizes, calorific value) — present as "our tested/COA-backed specification".
+Level D = plain marketing statements (bulk supply, custom packaging, samples available, export-ready) — allowed freely, no citation needed.
+Any statistic or performance number NOT traceable to A/B/C is forbidden — do not invent it.
+PRODUCT-INDUSTRY VALIDATION MATRIX (only write angles marked YES for the selected product):
+- Rice Husk Ash Powder: Steel YES, Concrete/SCM YES, Refractory YES, Road YES, Rubber/Tyre YES (as silica filler angle), Water treatment YES, Agriculture NO.
+- Rice Husk Ash Granules / Small Granules / Cylindrical Pellets: Steel YES (covering/insulation forms), Refractory YES, Concrete NO, Rubber NO, Agriculture NO, Water NO.
+- Rice Husk Powder: Cattle feed YES, Absorbent YES, Boards YES — industrial steel/concrete/rubber NO.
+- Rice Husk Pellets: Biomass fuel/boilers YES, co-firing YES — everything else NO.
+- Rice Husk (raw): Fuel YES, Agriculture/bedding/substrate YES — industrial silica angles NO.
+If today's product has no YES match with a fresh industry angle, use a Level C/D company angle (quality control, packaging, export logistics, factory process) instead."""
 
 def build_prompt(product, past_headlines):
-    return f"""{BRAND}
+    brand = BRAND.replace("{WEBSITE_PLACEHOLDER}", WEBSITE).replace("{PHONE_PLACEHOLDER}", PHONE)
+    return f"""{brand}
 
 TASK: Write ONE fresh LinkedIn post for: "{product}". Pick a fresh specific angle.
 Return ONLY raw JSON (no fences): {{"headline":"...","caption":"...","hashtags":"...","imagePrompt":"...","blogTitle":"..."}}
 - caption: 280-400 words, first line = heading (emoji + title), short paragraphs, blank lines, ✔ bullets, END with www.rhaindia.com and "Contact us for bulk orders, OEM supply and export inquiries."
-- imagePrompt: photorealistic industrial marketing scene for this product, include text overlay "www.rhaindia.com", 60-90 words.
+- imagePrompt: photorealistic industrial marketing scene (60-90 words) incl. the branded Ambika bag (navy top, golden crown 'AMBIKA RHA', yellow bottom with product name, 'EXPORT QUALITY PRODUCT OF INDIA') and text overlay "www.rhaindia.com". CRITICAL: depict EXACTLY this product's form & correct scene — Ash Powder = fine grey-white powder over molten steel/tundish; Ash Granules = small ROUND grey granules spread on molten metal; Small Granules = finer round granules, steel scenes; Cylindrical Pellets = grey CYLINDER pellets in dosing/casting; Rice Husk Powder = tan ORGANIC powder at feed mill/dairy (NO steel scenes); Rice Husk Pellets = BROWN biomass fuel pellets at boiler/furnace (NO molten steel); Rice Husk raw = GOLDEN loose husk at rice mill/fuel yard. Bag label = exactly this product name. NEVER mix another product's form, color or scene.
 - DO NOT reuse these recent headlines/angles:
 {chr(10).join('- ' + h for h in past_headlines) or '(none)'}"""
 
@@ -114,7 +149,25 @@ def gemini_image(prompt, out_path, retries=3):
     return None
 
 
-# ---------------- Fallback poster (PIL) — guarantees every post has an image ----------------
+# ---------------- Pollinations.ai (free, keyless AI images) ----------------
+def pollinations_image(prompt, out_path, retries=2):
+    q = requests.utils.quote((prompt or "")[:900])
+    url = f"https://image.pollinations.ai/prompt/{q}?width=1080&height=1080&nologo=true&model=flux&seed={int(time.time())}"
+    for i in range(retries + 1):
+        try:
+            r = requests.get(url, timeout=180)
+            if r.status_code == 200 and r.headers.get("content-type", "").startswith("image") and len(r.content) > 20000:
+                os.makedirs(IMG_DIR, exist_ok=True)
+                with open(out_path, "wb") as f:
+                    f.write(r.content)
+                return out_path
+            print("pollinations error", r.status_code, r.headers.get("content-type"), len(r.content))
+        except Exception as e:
+            print("pollinations exception", e)
+        time.sleep(15 * (i + 1))
+    return None
+
+# ---------------- Fallback poster (PIL) — last resort only ----------------
 def fallback_poster(headline, product, caption, out_path):
     try:
         from PIL import Image, ImageDraw, ImageFont
@@ -300,8 +353,12 @@ def run_product(product, log):
         if img_ok:
             entry["status"]["image"] = "ok (nano banana)"
         else:
-            img_ok = fallback_poster(data.get("headline",""), product, data.get("caption",""), img_path)
-            entry["status"]["image"] = "ok (fallback poster)" if img_ok else "failed"
+            img_ok = pollinations_image(data["imagePrompt"], img_path)
+            if img_ok:
+                entry["status"]["image"] = "ok (pollinations)"
+            else:
+                img_ok = fallback_poster(data.get("headline",""), product, data.get("caption",""), img_path)
+                entry["status"]["image"] = "ok (fallback poster)" if img_ok else "failed"
         entry["image"] = f"images/{img_name}" if img_ok else None
 
         # LinkedIn
