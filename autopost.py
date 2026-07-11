@@ -21,7 +21,7 @@ TG_CHAT      = os.environ.get("TELEGRAM_CHAT_ID", "")
 SHEET_ID     = os.environ.get("GOOGLE_SHEET_ID", "")   # spreadsheet id from sheet URL
 
 TEXT_MODEL  = "gemini-flash-latest"
-IMAGE_MODEL = "gemini-3.1-flash-image"   # Nano Banana 2 (stable)
+IMAGE_MODEL = "gemini-2.5-flash-image"   # Nano Banana (free tier)
 
 ROTATION = ["Rice Husk Ash Powder","Rice Husk Ash Granules","Rice Husk Ash Small Granules",
             "Rice Husk Ash Cylindrical Pellets","Rice Husk Powder","Rice Husk Pellets","Rice Husk"]
@@ -107,8 +107,65 @@ def gemini_image(prompt, out_path, retries=3):
             print("gemini image: 200 but no inlineData; parts keys:", [list(p.keys()) for p in r.json()["candidates"][0]["content"]["parts"]][:5])
         else:
             print("gemini image error", r.status_code, r.text[:400])
+            if "limit: 0" in r.text:
+                break  # model has no free quota at all
         time.sleep(10 * (i+1))
     return None
+
+
+# ---------------- Fallback poster (PIL) — guarantees every post has an image ----------------
+def fallback_poster(headline, product, caption, out_path):
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        return None
+    W = H = 1080
+    img = Image.new("RGB", (W, H))
+    d = ImageDraw.Draw(img)
+    for y in range(H):
+        t = y / H
+        d.line([(0, y), (W, y)], fill=(int(27+7*t), int(40+8*t), int(51+9*t)))
+    def font(sz, bold=True):
+        try:
+            return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", sz)
+        except Exception:
+            return ImageFont.load_default()
+    def wrap(text, f, maxw):
+        words, lines, line = text.split(), [], ""
+        for w in words:
+            t2 = (line + " " + w).strip()
+            if d.textlength(t2, font=f) > maxw and line:
+                lines.append(line); line = w
+            else:
+                line = t2
+        if line: lines.append(line)
+        return lines
+    d.rectangle([70, 88, 78, 142], fill=(201,163,92))
+    d.text((100, 88), "AMBIKA BIOTECH", font=font(36), fill=(232,228,218))
+    d.text((100, 132), "RHA INDIA - From Agro Residue to Industrial Value", font=font(22, False), fill=(154,164,173))
+    pf = font(26); pw = d.textlength(product.upper(), font=pf) + 48
+    d.rectangle([70, 205, 70+pw, 257], fill=(194,87,27))
+    d.text((94, 216), product.upper(), font=pf, fill=(255,255,255))
+    y = 320
+    hl = "".join(ch for ch in headline if ord(ch) < 0x2700)
+    for ln in wrap(hl.strip(), font(58), W-160)[:4]:
+        d.text((70, y), ln, font=font(58), fill=(242,239,231)); y += 74
+    d.rectangle([70, y+10, 200, y+16], fill=(201,163,92)); y += 60
+    bullets = [l.strip().lstrip(u"\u2714").strip() for l in (caption or "").split("\n") if l.strip().startswith(u"\u2714")][:3]
+    if not bullets:
+        bullets = ["Export quality, consistent batches", "Bulk supply and custom packaging", "Sustainable, eco-friendly material"]
+    bf = font(30, False)
+    for b in bullets:
+        d.ellipse([76, y+8, 94, y+26], fill=(201,163,92))
+        for ln in wrap("".join(ch for ch in b if ord(ch) < 0x2700), bf, W-220)[:2]:
+            d.text((112, y), ln, font=bf, fill=(217,213,203)); y += 40
+        y += 14
+    d.polygon([(0, H), (W, H), (W, H-190), (0, H-110)], fill=(194,87,27))
+    d.text((70, H-108), "www.rhaindia.com", font=font(40), fill=(255,255,255))
+    d.text((70, H-56), "Bulk Orders - OEM Supply - Export Inquiries  |  +91-7381757575", font=font(26, False), fill=(255,255,255))
+    os.makedirs(IMG_DIR, exist_ok=True)
+    img.save(out_path)
+    return out_path
 
 # ---------------- LinkedIn ----------------
 def linkedin_post(caption, image_path=None):
@@ -227,8 +284,12 @@ def run_product(product, log):
         img_name = f"{today}-{product.lower().replace(' ', '-')}.png"
         img_path = os.path.join(IMG_DIR, img_name)
         img_ok = gemini_image(data["imagePrompt"], img_path)
+        if img_ok:
+            entry["status"]["image"] = "ok (nano banana)"
+        else:
+            img_ok = fallback_poster(data.get("headline",""), product, data.get("caption",""), img_path)
+            entry["status"]["image"] = "ok (fallback poster)" if img_ok else "failed"
         entry["image"] = f"images/{img_name}" if img_ok else None
-        entry["status"]["image"] = "ok" if img_ok else "failed"
 
         # LinkedIn
         try:
