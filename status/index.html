@@ -2,48 +2,170 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RHA Autopilot — Status</title>
+<title>RHA Mission Control — Ambika Biotech</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  body{font-family:system-ui,sans-serif;background:#ECEAE4;color:#22303C;margin:0;padding:20px;max-width:900px;margin:auto}
-  h1{font-size:20px;border-bottom:2px solid #22303C;padding-bottom:10px}
-  h1 span{color:#C2571B}
-  .card{background:#F7F5F0;border:1px solid #CFC9BC;border-radius:10px;padding:16px;margin:12px 0;
-    box-shadow:0 2px 8px rgba(34,48,60,.06)}
-  .prod{font-weight:700;color:#C2571B;font-size:13px;text-transform:uppercase;letter-spacing:.08em}
-  .head{font-weight:600;margin:6px 0}
-  .date{font-size:12px;color:#5A6672;font-family:monospace}
-  .badges{margin:10px 0;display:flex;gap:8px;flex-wrap:wrap}
-  .b{font-size:12px;font-weight:600;padding:4px 12px;border-radius:99px}
-  .ok{background:#DCEFE3;color:#2E7D4F}
-  .fail{background:#F6E0D3;color:#9A4212}
-  img{max-width:280px;border-radius:8px;border:1px solid #CFC9BC;display:block;margin-top:8px}
-  a{color:#C2571B;font-weight:600;text-decoration:none;font-size:13px;margin-right:14px}
+  :root{--bg:#ECEAE4;--panel:#F7F5F0;--ink:#22303C;--soft:#5A6672;--line:#CFC9BC;--molten:#C2571B;--molten2:#9A4212;--good:#2E7D4F;--husk:#C9A35C;--li:#0A66C2}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);padding:16px;max-width:860px;margin:auto;font-size:15px;line-height:1.55}
+  header{display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:16px}
+  .mark{width:42px;height:42px;border-radius:8px;background:linear-gradient(160deg,var(--husk),var(--molten) 60%,var(--molten2));display:flex;align-items:center;justify-content:center;font-family:Archivo;font-weight:800;color:#fff;font-size:17px}
+  h1{font-family:Archivo;font-size:18px;text-transform:uppercase;letter-spacing:.05em;line-height:1.2}
+  h1 span{color:var(--molten)}
+  h1 small{display:block;font-family:'IBM Plex Sans';font-weight:500;font-size:11.5px;color:var(--soft);text-transform:none;letter-spacing:0}
+  .deck{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px;box-shadow:0 2px 10px rgba(34,48,60,.06)}
+  label{display:block;font-family:Archivo;font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:6px}
+  .selwrap{position:relative;margin-bottom:12px}
+  select{width:100%;padding:13px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font-size:15px;appearance:none;font-family:inherit}
+  .selwrap::after{content:"▾";position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--molten)}
+  .go{width:100%;border:none;border-radius:10px;padding:16px;font-family:Archivo;font-size:15px;font-weight:800;cursor:pointer;background:var(--molten);color:#fff;text-transform:uppercase;letter-spacing:.06em}
+  .go:active{transform:translateY(1px)} .go:disabled{opacity:.6}
+  .note{font-size:12px;color:var(--soft);text-align:center;margin-top:9px}
+  .msg{display:none;padding:12px 14px;border-radius:9px;margin-top:12px;font-size:13.5px}
+  .msg.ok{display:block;background:#DCEFE3;color:var(--good)} .msg.err{display:block;background:#F6E0D3;color:var(--molten2)}
+  .stats{display:flex;gap:8px;margin-bottom:16px}
+  .st{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px;text-align:center}
+  .st b{display:block;font-size:19px;color:var(--molten)} .st small{font-size:10px;color:var(--soft);text-transform:uppercase;letter-spacing:.05em}
+  h2{font-family:Archivo;font-size:13px;letter-spacing:.09em;text-transform:uppercase;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--husk);border-radius:11px;padding:14px;margin-bottom:12px}
+  .prod{font-family:Archivo;font-weight:800;color:var(--molten);font-size:11.5px;text-transform:uppercase;letter-spacing:.07em}
+  .head{font-weight:600;margin:5px 0 4px;font-size:15px}
+  .date{font-family:monospace;font-size:11.5px;color:var(--soft)}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}
+  .b{font-size:11px;font-weight:700;padding:3px 11px;border-radius:99px;background:#DCEFE3;color:var(--good)}
+  .b.no{background:#EEE9DF;color:var(--soft)}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .abtn{border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:7px;padding:7px 13px;font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:none;font-family:inherit}
+  .abtn:hover{border-color:var(--molten);color:var(--molten)}
+  .abtn.li{border-color:var(--li);color:var(--li)}
+  .abtn.done{background:var(--good);border-color:var(--good);color:#fff}
+  .cap{display:none;white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:10px;font-size:13.5px;max-height:340px;overflow-y:auto}
+  .cap.show{display:block}
+  .card img{max-width:280px;width:100%;border-radius:8px;border:1px solid var(--line);margin-top:10px;display:block}
+  .empty{color:var(--soft);text-align:center;padding:28px 0}
 </style>
 </head>
 <body>
-<h1>🏭 RHA <span>Autopilot</span> — Posting Status</h1>
-<div id="list">Loading…</div>
+<header>
+  <div class="mark">RH</div>
+  <h1>RHA Mission <span>Control</span><small>Ambika Rice Mill &amp; Ambika Biotech · www.rhaindia.com</small></h1>
+</header>
+
+<div class="deck">
+  <label for="prodSel">Product</label>
+  <div class="selwrap">
+    <select id="prodSel">
+      <option value="">🔄 Auto — aaj ka rotation product</option>
+      <option>Rice Husk Ash Powder</option>
+      <option>Rice Husk Ash Granules</option>
+      <option>Rice Husk Ash Small Granules</option>
+      <option>Rice Husk Ash Cylindrical Pellets</option>
+      <option>Rice Husk Powder</option>
+      <option>Rice Husk Pellets</option>
+      <option>Rice Husk</option>
+    </select>
+  </div>
+  <button class="go" id="goBtn">⚡ Generate &amp; Post Now</button>
+  <div class="note">Kuch mat dabao toh roz 11:00 AM par auto-post. Specific product chuna toh wahi banega (aaj already posted ho toh bhi).</div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<div class="stats">
+  <div class="st"><b id="stT">0</b><small>Total</small></div>
+  <div class="st"><b id="stW">0</b><small>This week</small></div>
+  <div class="st"><b id="stB">0</b><small>Blog</small></div>
+  <div class="st"><b id="stL">0</b><small>LinkedIn</small></div>
+</div>
+
+<h2>📊 Posted History</h2>
+<div id="list"><div class="empty">Loading…</div></div>
+
 <script>
-fetch('log.json?t=' + Date.now()).then(r => r.json()).then(log => {
-  const el = document.getElementById('list');
-  if(!log.length){ el.textContent = 'No runs yet.'; return; }
-  el.innerHTML = '';
+const $ = id => document.getElementById(id);
+const esc = s => String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let LOG = [];
+
+$("goBtn").addEventListener("click", async () => {
+  let k = localStorage.getItem("rha-mc-key");
+  if(!k){ k = prompt("App password:"); if(!k) return; localStorage.setItem("rha-mc-key", k); }
+  const product = $("prodSel").value;
+  const btn = $("goBtn"), m = $("msg");
+  btn.disabled = true; btn.textContent = "⏳ Robot chala… (~2-3 min)";
+  m.className = "msg";
+  try{
+    let url = "/api/trigger?k=" + encodeURIComponent(k);
+    if(product){ url += "&product=" + encodeURIComponent(product) + "&force=1"; }
+    const r = await fetch(url);
+    const j = await r.json();
+    if(j.ok){
+      m.className = "msg ok";
+      m.textContent = "✔ " + (product || "Aaj ka product") + " ka post shuru! 3-4 min baad page refresh karo — yahan + rhaindia.com/blog par dikhega.";
+    } else {
+      if(r.status === 401) localStorage.removeItem("rha-mc-key");
+      m.className = "msg err";
+      m.textContent = "⚠ " + (j.error || "failed") + (r.status === 401 ? " — password galat, dubara try karo." : "");
+    }
+  }catch(e){ m.className = "msg err"; m.textContent = "⚠ Network error — dubara try karo."; }
+  btn.disabled = false; btn.textContent = "⚡ Generate & Post Now";
+});
+
+function copyText(text, btn, label){
+  const done = () => { const p = btn.textContent; btn.textContent = label || "Copied ✔"; btn.classList.add("done");
+    setTimeout(() => { btn.textContent = p; btn.classList.remove("done"); }, 2000); };
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done).catch(() => fb(text, done)); }
+  else fb(text, done);
+  function fb(t, cb){ const ta = document.createElement("textarea"); ta.value = t; ta.style.cssText = "position:fixed;opacity:0";
+    document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); cb(); }catch(e){} document.body.removeChild(ta); }
+}
+
+fetch("log.json?t=" + Date.now()).then(r => r.json()).then(log => {
+  LOG = log;
+  const weekAgo = Date.now() - 7*864e5;
+  $("stT").textContent = log.length;
+  $("stW").textContent = log.filter(e => new Date(e.date).getTime() >= weekAgo).length;
+  $("stB").textContent = log.filter(e => (e.status||{}).blogger === "ok").length;
+  $("stL").textContent = log.filter(e => (e.status||{}).linkedin === "ok").length;
+  const el = $("list");
+  if(!log.length){ el.innerHTML = '<div class="empty">Abhi koi post nahi.</div>'; return; }
+  el.innerHTML = "";
   [...log].reverse().forEach(e => {
-    const s = e.status || {};
-    const badge = (name, v) => `<span class="b ${String(v).startsWith('ok') ? 'ok' : 'fail'}">${name}: ${String(v||'—').slice(0,40)}</span>`;
-    const div = document.createElement('div');
-    div.className = 'card';
+    const i = log.indexOf(e), s = e.status || {};
+    const B = (n, v) => '<span class="b ' + (String(v||"").startsWith("ok") ? "" : "no") + '">' + n + (String(v||"").startsWith("ok") ? " ✓" : " —") + "</span>";
+    const div = document.createElement("div");
+    div.className = "card";
     div.innerHTML =
-      `<div class="prod">${e.product||''}</div>` +
-      `<div class="head">${e.headline||'(generation failed)'}</div>` +
-      `<div class="date">${e.date||''}</div>` +
-      `<div class="badges">${badge('LinkedIn', s.linkedin)} ${badge('Blogger', s.blogger)} ${badge('Image', s.image)}</div>` +
-      (e.linkedin_url ? `<a href="${e.linkedin_url}" target="_blank">Open LinkedIn ↗</a>` : '') +
-      (e.blogger_url ? `<a href="${e.blogger_url}" target="_blank">Open Blog ↗</a>` : '') +
-      (e.image ? `<img src="${e.image}" loading="lazy">` : '');
+      '<div class="prod">' + esc(e.product||"") + '</div>' +
+      '<div class="head">' + esc(e.headline||"(failed)") + '</div>' +
+      '<div class="date">' + esc(e.date||"") + '</div>' +
+      '<div class="badges">' + B("Blog", s.blogger) + B("LinkedIn", s.linkedin) + B("Image", s.image) + '</div>' +
+      '<div class="acts">' +
+        (e.caption ? '<button class="abtn" data-cap="' + i + '">📄 Caption dekho</button>' : '') +
+        (e.caption ? '<button class="abtn" data-copy="' + i + '">Copy caption</button>' : '') +
+        (e.caption ? '<button class="abtn li" data-li="' + i + '">in&nbsp; LinkedIn par post</button>' : '') +
+        (e.blogger_url ? '<a class="abtn" href="' + esc(e.blogger_url) + '" target="_blank">Blog kholo ↗</a>' : '') +
+        (e.linkedin_url ? '<a class="abtn li" href="' + esc(e.linkedin_url) + '" target="_blank">LinkedIn kholo ↗</a>' : '') +
+      '</div>' +
+      (e.caption ? '<div class="cap" id="cap-' + i + '">' + esc(e.caption) + '</div>' : '') +
+      (e.image ? '<img src="' + esc(e.image) + '" loading="lazy">' : '');
     el.appendChild(div);
   });
-}).catch(() => document.getElementById('list').textContent = 'log.json not found — run the workflow once.');
+}).catch(() => $("list").innerHTML = '<div class="empty">log.json nahi mila — ek baar Post Now dabao.</div>');
+
+document.addEventListener("click", e => {
+  const t = e.target;
+  const cap = t.getAttribute && t.getAttribute("data-cap");
+  const cp = t.getAttribute && t.getAttribute("data-copy");
+  const li = t.getAttribute && t.getAttribute("data-li");
+  if(cap !== null && cap !== undefined && cap !== ""){
+    $("cap-" + cap).classList.toggle("show");
+  } else if(cp !== null && cp !== undefined && cp !== ""){
+    copyText(LOG[+cp].caption || "", t);
+  } else if(li !== null && li !== undefined && li !== ""){
+    const text = LOG[+li].caption || "";
+    copyText(text, t, "in Copied — paste & Post");
+    window.open("https://www.linkedin.com/feed/?shareActive=true&text=" + encodeURIComponent(text.slice(0, 2800)), "_blank");
+  }
+});
 </script>
 </body>
 </html>
