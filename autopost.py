@@ -8,7 +8,7 @@ import os, json, base64, datetime, time, sys, re
 import requests
 
 # ---------------- config ----------------
-GEMINI_KEY   = os.environ["GEMINI_API_KEY"]
+GEMINI_KEY   = os.environ["GEMINI_API_KEY"].strip()
 LI_TOKEN     = os.environ.get("LINKEDIN_ACCESS_TOKEN", "")
 LI_PERSON    = os.environ.get("LINKEDIN_PERSON_URN", "")   # e.g. urn:li:person:AbC123
 WEBSITE_REPO = os.environ.get("WEBSITE_REPO", "")        # e.g. KrishnaSaha11/rhaindia-website
@@ -20,8 +20,8 @@ TG_TOKEN     = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT      = os.environ.get("TELEGRAM_CHAT_ID", "")
 SHEET_ID     = os.environ.get("GOOGLE_SHEET_ID", "")   # spreadsheet id from sheet URL
 
-TEXT_MODEL  = "gemini-2.5-flash"
-IMAGE_MODEL = "gemini-2.5-flash-image"   # nano banana — verify current model name in AI Studio
+TEXT_MODEL  = "gemini-flash-latest"
+IMAGE_MODEL = "gemini-3.1-flash-image"   # Nano Banana 2 (stable)
 
 ROTATION = ["Rice Husk Ash Powder","Rice Husk Ash Granules","Rice Husk Ash Small Granules",
             "Rice Husk Ash Cylindrical Pellets","Rice Husk Powder","Rice Husk Pellets","Rice Husk"]
@@ -75,12 +75,13 @@ def save_log(log):
     with open(LOG_PATH, "w") as f: json.dump(log, f, indent=1, ensure_ascii=False)
 
 def gemini_text(prompt, retries=3):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{TEXT_MODEL}:generateContent?key={GEMINI_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{TEXT_MODEL}:generateContent"
     body = {"contents":[{"parts":[{"text": prompt}]}]}
     for i in range(retries):
-        r = requests.post(url, json=body, timeout=120)
+        r = requests.post(url, json=body, timeout=120, headers={"x-goog-api-key": GEMINI_KEY})
         if r.status_code == 200:
             return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        print("gemini text error", r.status_code, r.text[:300])
         time.sleep(8 * (i+1))
     r.raise_for_status()
 
@@ -90,10 +91,10 @@ def parse_json(text):
 
 def gemini_image(prompt, out_path, retries=3):
     """Nano Banana image generation -> saves PNG, returns path or None."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{IMAGE_MODEL}:generateContent?key={GEMINI_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{IMAGE_MODEL}:generateContent"
     body = {"contents":[{"parts":[{"text": prompt}]}]}
     for i in range(retries):
-        r = requests.post(url, json=body, timeout=180)
+        r = requests.post(url, json=body, timeout=180, headers={"x-goog-api-key": GEMINI_KEY})
         if r.status_code == 200:
             for part in r.json()["candidates"][0]["content"]["parts"]:
                 if "inlineData" in part:
