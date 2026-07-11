@@ -1,0 +1,43 @@
+name: RHA Daily Autopost
+on:
+  schedule:
+    - cron: "30 5 * * *"   # 05:30 UTC = 11:00 AM IST
+  workflow_dispatch: {}      # manual "Run workflow" button for testing
+
+permissions:
+  contents: write            # to commit log.json + images back to repo
+
+jobs:
+  autopost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests google-auth
+
+      - name: Run autopost
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_PERSON_URN: ${{ secrets.LINKEDIN_PERSON_URN }}
+          WEBSITE_REPO: ${{ secrets.WEBSITE_REPO }}
+          WEBSITE_PAT: ${{ secrets.WEBSITE_PAT }}
+          BLOG_DIR: ${{ secrets.BLOG_DIR }}
+          BLOG_IMG_DIR: ${{ secrets.BLOG_IMG_DIR }}
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+        run: python autopost.py
+
+      - name: Commit log + images
+        run: |
+          git config user.name "rha-bot"
+          git config user.email "bot@rhaindia.com"
+          git add status/log.json status/images/ || true
+          git commit -m "autopost $(date +%F)" || echo "nothing to commit"
+          git push

@@ -1,0 +1,263 @@
+"""
+RHA Autopilot — daily content generation + auto-posting
+Flow: generate post (Gemini) -> generate image (Nano Banana) -> post LinkedIn -> post Blogger -> log -> Telegram summary
+Run: python autopost.py            (posts today's rotation product)
+     python autopost.py --all      (posts all 7 — use for testing only)
+"""
+import os, json, base64, datetime, time, sys, re
+import requests
+
+# ---------------- config ----------------
+GEMINI_KEY   = os.environ["GEMINI_API_KEY"]
+LI_TOKEN     = os.environ.get("LINKEDIN_ACCESS_TOKEN", "")
+LI_PERSON    = os.environ.get("LINKEDIN_PERSON_URN", "")   # e.g. urn:li:person:AbC123
+WEBSITE_REPO = os.environ.get("WEBSITE_REPO", "")        # e.g. KrishnaSaha11/rhaindia-website
+WEBSITE_PAT  = os.environ.get("WEBSITE_PAT", "")         # fine-grained PAT: Contents RW on that repo
+BLOG_DIR     = os.environ.get("BLOG_DIR", "src/content/blog")        # adjust to your Astro structure
+BLOG_IMG_DIR = os.environ.get("BLOG_IMG_DIR", "public/blog-images")  # adjust to your Astro structure
+GOOGLE_SA_JSON = os.environ.get("GOOGLE_SA_JSON", "")    # service account key JSON (whole content)
+TG_TOKEN     = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TG_CHAT      = os.environ.get("TELEGRAM_CHAT_ID", "")
+SHEET_ID     = os.environ.get("GOOGLE_SHEET_ID", "")   # spreadsheet id from sheet URL
+
+TEXT_MODEL  = "gemini-2.5-flash"
+IMAGE_MODEL = "gemini-2.5-flash-image"   # nano banana — verify current model name in AI Studio
+
+ROTATION = ["Rice Husk Ash Powder","Rice Husk Ash Granules","Rice Husk Ash Small Granules",
+            "Rice Husk Ash Cylindrical Pellets","Rice Husk Powder","Rice Husk Pellets","Rice Husk"]
+
+LOG_PATH = "status/log.json"
+IMG_DIR  = "status/images"
+
+# ---------------- BRAND PROMPT ----------------
+# BRAND: keyword bank + hashtag bank + 7-product FACT SHEET + guardrails (pre-merged)
+BRAND = """You are the B2B industrial marketing copywriter for Ambika Rice Mill & Ambika Biotech (brand: RHA India, www.rhaindia.com), manufacturer & exporter of rice husk ash products from Sambalpur, Odisha, India. Target buyers: steel plants, foundries, refractory manufacturers, ferro alloy plants, cement, construction, oil absorbents, distributors. Export markets to mention naturally (pick 3-5, vary): UAE, Saudi Arabia, Qatar, Turkey, Egypt, Germany, Netherlands, Spain, Italy, Poland, South Korea, Japan, Vietnam, Thailand, Indonesia, Australia, USA. Premium professional English, no fluff.
+
+HIGH-INTENT SEO KEYWORD BANK (weave 3-6 naturally into every caption; rotate different ones each time; use them heavily in seoKeywords):
+RHA & Silica: rice husk ash powder exporter India, rice husk ash manufacturer India, rice husk ash supplier India, rice husk ash Odisha, high silica rice husk ash, high SiO2 rice husk ash, silica rich rice husk ash, amorphous silica powder, biogenic silica powder, reactive amorphous silica, high purity silica powder, eco-friendly silica alternative, sustainable silica powder, green silica material, synthetic silica replacement.
+Product variants: rice husk ash powder, rice husk ash granules, rice husk ash pellets, rice husk ash for continuous casting, rice husk ash for steel making shop, rice husk ash for steel melting shop, rice husk ash for metallurgy, rice husk ash insulation powder.
+Steel industry: rice husk ash for steel industry, SMS insulation powder, steel melting shop insulation powder, ladle covering compound supplier, ladle insulation powder, tundish covering compound, tundish insulation powder, molten steel insulation material, slag covering compound, CCM insulation powder, continuous casting unit insulation, billet/bloom/slab caster insulation powder, secondary metallurgy insulation, steel casting insulation powder.
+Refractory & metallurgical: refractory insulation powder, refractory raw material supplier, refractory grade silica, metallurgical insulation powder, metallurgical flux material, foundry insulation powder, ferro alloy insulation powder, induction furnace insulation material, electric arc furnace insulation, BOF insulation material, converter insulation powder.
+Industrial applications: thermal insulation material, high temperature insulating powder, energy saving insulation material, heat retention powder, molten metal covering compound, oxidation prevention powder, slag control material, thermal barrier powder, low heat loss material.
+Export (pattern "rice husk ash exporter + country"): UAE, Saudi Arabia, Qatar, Oman, Germany, Netherlands, Italy, Spain, France, Poland, Turkey, South Korea, Japan, Taiwan, Vietnam, Indonesia, Malaysia, Australia, Canada, USA.
+Buyer intent: bulk rice husk ash supplier, OEM rice husk ash manufacturer, B2B silica powder supplier, refractory material exporter, steel plant raw material supplier, foundry raw material supplier, metallurgical consumables supplier, export quality rice husk ash, ISO quality rice husk ash supplier, industrial raw material exporter India.
+Silica fume / SCM positioning (IMPORTANT RULE: NEVER claim RHA IS silica fume or micro silica — it is not. Only position as "alternative to silica fume", "micro silica alternative", "cost-effective silica fume substitute", and ONLY in applications where amorphous RHA genuinely performs: SCM/pozzolanic use in concrete, refractory filler, insulation. Honest comparison builds buyer trust): silica fume alternative, micro silica alternative, microsilica substitute, pozzolanic material, supplementary cementitious material SCM, reactive silica, high silica powder, silica for refractory, silica for foundry, silica for steel industry, silica for continuous casting, metallurgical additives, foundry flux, steel casting materials, insulating powder, heat insulation powder, green silica, sustainable silica.
+Target buyer roles to speak to: steel plants, SMS/steel melting shops, CCM/continuous casting units, foundries, refractory manufacturers, metallurgical industries, ferro alloy plants.
+
+PRODUCT FACT SHEET (STRICT — use ONLY the correct facts for the selected product; NEVER attribute ash properties to raw husk products or vice versa):
+1. Rice Husk Ash Powder = combusted ash, 90%+ amorphous SiO2 (typical 90-92%, tundish grade 92% min), very low bulk density ~100-200 kg/m3. Uses: tundish/ladle covering compound, molten steel insulation, SMS/CCM, refractory filler, pozzolanic SCM in concrete, oil absorbent.
+2. Rice Husk Ash Granules = same RHA chemistry (90%+ SiO2) in granular form (approx 1-5 mm): dust-free handling, easy manual/mechanical spreading over molten metal, less blow-off under draft. Same steel/refractory uses as powder.
+3. Rice Husk Ash Small Granules = finer RHA granules (approx 0.5-2 mm): faster spread coverage, balance between powder coverage and granule dust control. Same steel/refractory uses.
+4. Rice Husk Ash Cylindrical Pellets = compacted RHA in cylindrical pellet form: densified for clean dosing, minimal dust, uniform cylindrical shape for controlled melt-spread on molten surface and easy mechanical/auto feeding. Same steel/refractory uses. Still 90%+ SiO2 ash. Always call this product "Cylindrical Pellets" in the content.
+5. Rice Husk Powder = GROUND RAW HUSK (NOT ash!): cattle-feed-grade organic material (cellulose/lignin rich). PRIMARY use: cattle & animal feed filler/roughage carrier for feed mills. Secondary: oil & chemical absorbent, particle board & wood-polymer composites, incense stick base. Angle: feed-grade quality, consistent grind, bulk supply to feed mills & dairies. NEVER claim molten steel insulation or high SiO2 for this product.
+6. Rice Husk Pellets = DENSIFIED RAW HUSK BIOMASS FUEL (NOT ash!): calorific value approx 3,200-3,800 kcal/kg, low ash vs coal, renewable boiler/industrial fuel, co-firing, gasification feedstock. Angle: energy cost saving, carbon reduction vs coal, consistent pellet sizing. NEVER claim steel insulation or high SiO2.
+7. Rice Husk (raw) = loose husk: biomass fuel/boiler feedstock, poultry & cattle bedding, packing material, horticulture growing media, and the raw material for RHA production. NEVER claim steel insulation or high SiO2.
+For products 5-7 the target buyers shift to: biomass energy plants, boiler operators, feed mills & dairies (cattle feed), board manufacturers, poultry farms, horticulture — adjust industries, keywords and hashtags accordingly (keep brand tags)."""
+
+def build_prompt(product, past_headlines):
+    return f"""{BRAND}
+
+TASK: Write ONE fresh LinkedIn post for: "{product}". Pick a fresh specific angle.
+Return ONLY raw JSON (no fences): {{"headline":"...","caption":"...","hashtags":"...","imagePrompt":"...","blogTitle":"..."}}
+- caption: 280-400 words, first line = heading (emoji + title), short paragraphs, blank lines, ✔ bullets, END with www.rhaindia.com and "Contact us for bulk orders, OEM supply and export inquiries."
+- imagePrompt: photorealistic industrial marketing scene for this product, include text overlay "www.rhaindia.com", 60-90 words.
+- DO NOT reuse these recent headlines/angles:
+{chr(10).join('- ' + h for h in past_headlines) or '(none)'}"""
+
+# ---------------- helpers ----------------
+def load_log():
+    try:
+        with open(LOG_PATH) as f: return json.load(f)
+    except Exception: return []
+
+def save_log(log):
+    os.makedirs("status", exist_ok=True)
+    with open(LOG_PATH, "w") as f: json.dump(log, f, indent=1, ensure_ascii=False)
+
+def gemini_text(prompt, retries=3):
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{TEXT_MODEL}:generateContent?key={GEMINI_KEY}"
+    body = {"contents":[{"parts":[{"text": prompt}]}]}
+    for i in range(retries):
+        r = requests.post(url, json=body, timeout=120)
+        if r.status_code == 200:
+            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        time.sleep(8 * (i+1))
+    r.raise_for_status()
+
+def parse_json(text):
+    t = re.sub(r"```json|```", "", text).strip()
+    return json.loads(t[t.index("{"): t.rindex("}")+1])
+
+def gemini_image(prompt, out_path, retries=3):
+    """Nano Banana image generation -> saves PNG, returns path or None."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{IMAGE_MODEL}:generateContent?key={GEMINI_KEY}"
+    body = {"contents":[{"parts":[{"text": prompt}]}]}
+    for i in range(retries):
+        r = requests.post(url, json=body, timeout=180)
+        if r.status_code == 200:
+            for part in r.json()["candidates"][0]["content"]["parts"]:
+                if "inlineData" in part:
+                    os.makedirs(IMG_DIR, exist_ok=True)
+                    with open(out_path, "wb") as f:
+                        f.write(base64.b64decode(part["inlineData"]["data"]))
+                    return out_path
+        time.sleep(10 * (i+1))
+    return None
+
+# ---------------- LinkedIn ----------------
+def linkedin_post(caption, image_path=None):
+    """Returns post URL or raises. Needs w_member_social scope."""
+    H = {"Authorization": f"Bearer {LI_TOKEN}", "X-Restli-Protocol-Version": "2.0.0"}
+    media = []
+    if image_path:
+        reg = requests.post("https://api.linkedin.com/v2/assets?action=registerUpload", headers=H, json={
+            "registerUploadRequest": {
+                "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
+                "owner": LI_PERSON,
+                "serviceRelationships": [{"relationshipType":"OWNER","identifier":"urn:li:userGeneratedContent"}]
+            }}).json()
+        up = reg["value"]["uploadMechanism"]["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]["uploadUrl"]
+        asset = reg["value"]["asset"]
+        with open(image_path, "rb") as f:
+            requests.put(up, headers={"Authorization": f"Bearer {LI_TOKEN}"}, data=f.read()).raise_for_status()
+        media = [{"status":"READY","media": asset}]
+    body = {
+        "author": LI_PERSON,
+        "lifecycleState": "PUBLISHED",
+        "specificContent": {"com.linkedin.ugc.ShareContent": {
+            "shareCommentary": {"text": caption},
+            "shareMediaCategory": "IMAGE" if media else "NONE",
+            **({"media": media} if media else {})
+        }},
+        "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
+    }
+    r = requests.post("https://api.linkedin.com/v2/ugcPosts", headers=H, json=body)
+    r.raise_for_status()
+    pid = r.headers.get("x-restli-id", "")
+    return f"https://www.linkedin.com/feed/update/{pid}" if pid else "posted"
+
+# ---------------- Website blog (Astro repo on Vercel) ----------------
+def gh_put(path, content_bytes, message):
+    """Create/update a file in the website repo via GitHub API."""
+    url = f"https://api.github.com/repos/{WEBSITE_REPO}/contents/{path}"
+    H = {"Authorization": f"Bearer {WEBSITE_PAT}", "Accept": "application/vnd.github+json"}
+    body = {"message": message, "content": base64.b64encode(content_bytes).decode()}
+    r = requests.get(url, headers=H)
+    if r.status_code == 200:
+        body["sha"] = r.json()["sha"]
+    r = requests.put(url, headers=H, json=body)
+    r.raise_for_status()
+    return r.json()
+
+def website_blog_post(data, img_path, date):
+    """Commits image + SEO markdown post to the website repo -> Vercel auto-deploys."""
+    slug = re.sub(r"[^a-z0-9]+", "-", (data.get("blogTitle") or data["headline"]).lower()).strip("-")[:70]
+    slug = f"{date}-{slug}"
+    img_web = None
+    if img_path and os.path.exists(img_path):
+        img_name = f"{slug}.png"
+        with open(img_path, "rb") as f:
+            gh_put(f"{BLOG_IMG_DIR}/{img_name}", f.read(), f"blog image {slug}")
+        img_web = f"/blog-images/{img_name}"
+    title = (data.get("blogTitle") or data["headline"]).replace('"', "'")
+    desc = re.sub(r"\s+", " ", data["caption"]).strip()[:155].replace('"', "'")
+    tags = [t.strip("#") for t in (data.get("hashtags", "").split()[:6])]
+    # NOTE (Krishna): match these frontmatter fields to your Astro content collection schema!
+    fm = ["---",
+          f'title: "{title}"',
+          f'description: "{desc}"',
+          f"pubDate: {date}",
+          (f'heroImage: "{img_web}"' if img_web else ""),
+          "tags: [" + ", ".join(f'"{t}"' for t in tags) + "]",
+          "---", ""]
+    body = data["caption"] + "\n\n" + data.get("hashtags", "") + \
+           "\n\n📞 +91-7381757575 | 🌐 [www.rhaindia.com](https://www.rhaindia.com)\n"
+    md = "\n".join([l for l in fm if l != ""]) + "\n" + body
+    gh_put(f"{BLOG_DIR}/{slug}.md", md.encode(), f"blog post {slug}")
+    return f"https://www.rhaindia.com/blog/{slug}"
+
+# ---------------- Google auth (service account for Sheets) ----------------
+def google_access_token():
+    from google.oauth2 import service_account
+    from google.auth.transport.requests import Request
+    info = json.loads(GOOGLE_SA_JSON)
+    creds = service_account.Credentials.from_service_account_info(
+        info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+    creds.refresh(Request())
+    return creds.token
+
+# ---------------- Google Sheet history ----------------
+def sheet_log(entry):
+    """Appends one row per post to the tracking Google Sheet."""
+    if not SHEET_ID: return
+    tok = google_access_token()
+    row = [entry.get("date",""), entry.get("product",""), entry.get("headline",""),
+           entry.get("linkedin_url",""), entry.get("blogger_url",""),
+           entry.get("image",""), json.dumps(entry.get("status",{}), ensure_ascii=False)]
+    requests.post(
+        f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/Sheet1!A1:append",
+        params={"valueInputOption": "USER_ENTERED"},
+        headers={"Authorization": f"Bearer {tok}"},
+        json={"values": [row]})
+
+# ---------------- Telegram ----------------
+def telegram(msg):
+    if not TG_TOKEN: return
+    requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+        json={"chat_id": TG_CHAT, "text": msg, "disable_web_page_preview": True})
+
+# ---------------- main ----------------
+def run_product(product, log):
+    today = datetime.date.today().isoformat()
+    past = [e["headline"] for e in log if e.get("product") == product][-8:] \
+         + [e["headline"] for e in log[-12:]]
+    entry = {"date": today, "product": product, "status": {}, "headline": ""}
+    try:
+        data = parse_json(gemini_text(build_prompt(product, past)))
+        entry["headline"] = data["headline"]
+        full_post = data["caption"] + "\n\n" + data["hashtags"]
+
+        # image (nano banana)
+        img_name = f"{today}-{product.lower().replace(' ', '-')}.png"
+        img_path = os.path.join(IMG_DIR, img_name)
+        img_ok = gemini_image(data["imagePrompt"], img_path)
+        entry["image"] = f"images/{img_name}" if img_ok else None
+        entry["status"]["image"] = "ok" if img_ok else "failed"
+
+        # LinkedIn
+        try:
+            entry["linkedin_url"] = linkedin_post(full_post, img_path if img_ok else None)
+            entry["status"]["linkedin"] = "ok"
+        except Exception as e:
+            entry["status"]["linkedin"] = f"failed: {e}"
+
+        # Website blog (rhaindia.com)
+        try:
+            entry["blogger_url"] = website_blog_post(data, img_path if img_ok else None, today)
+            entry["status"]["blogger"] = "ok"
+        except Exception as e:
+            entry["status"]["blogger"] = f"failed: {e}"
+
+    except Exception as e:
+        entry["status"]["generation"] = f"failed: {e}"
+    log.append(entry)
+    try: sheet_log(entry)
+    except Exception as e: entry["status"]["sheet"] = f"failed: {e}"
+    return entry
+
+if __name__ == "__main__":
+    log = load_log()
+    if "--all" in sys.argv:
+        products = ROTATION
+    else:
+        products = [ROTATION[datetime.date.today().weekday() % 7]]  # Mon=Powder ... Sun=Rice Husk
+    results = [run_product(p, log) for p in products]
+    save_log(log)
+    lines = [f"🏭 RHA Autopilot — {datetime.date.today()}"]
+    for r in results:
+        s = r["status"]
+        lines.append(f"\n{r['product']}\n📝 {r.get('headline','—')}"
+                     f"\nin: {s.get('linkedin','—')} | blog: {s.get('blogger','—')} | img: {s.get('image','—')}"
+                     + (f"\n🔗 {r.get('linkedin_url','')}" if r.get('linkedin_url') else ""))
+    telegram("\n".join(lines))
+    print(json.dumps(results, indent=1, ensure_ascii=False))
