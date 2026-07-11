@@ -330,6 +330,11 @@ if __name__ == "__main__":
         products = ROTATION
     else:
         products = [ROTATION[datetime.date.today().weekday() % 7]]  # Mon=Powder ... Sun=Rice Husk
+        today = datetime.date.today().isoformat()
+        already = [e for e in log if e.get("date") == today and (e.get("status", {}).get("blogger") == "ok" or e.get("status", {}).get("linkedin") == "ok")]
+        if already and "--force" not in sys.argv:
+            print("Already posted today (" + already[-1]["product"] + ") — skipping. Use --force to override.")
+            sys.exit(0)
     results = [run_product(p, log) for p in products]
     save_log(log)
     lines = [f"🏭 RHA Autopilot — {datetime.date.today()}"]
