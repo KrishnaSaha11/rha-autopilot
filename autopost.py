@@ -291,6 +291,7 @@ def run_product(product, log):
         data = parse_json(gemini_text(build_prompt(product, past)))
         entry["headline"] = data["headline"]
         full_post = data["caption"] + "\n\n" + data["hashtags"]
+        entry["caption"] = full_post
 
         # image (nano banana)
         img_name = f"{today}-{product.lower().replace(' ', '-')}.png"
@@ -326,13 +327,17 @@ def run_product(product, log):
 
 if __name__ == "__main__":
     log = load_log()
+    override = (os.environ.get("PRODUCT_OVERRIDE") or "").strip()
+    force = (os.environ.get("FORCE") or "").lower() in ("1", "true", "yes") or "--force" in sys.argv
     if "--all" in sys.argv:
         products = ROTATION
+    elif override and override in ROTATION:
+        products = [override]
     else:
         products = [ROTATION[datetime.date.today().weekday() % 7]]  # Mon=Powder ... Sun=Rice Husk
         today = datetime.date.today().isoformat()
         already = [e for e in log if e.get("date") == today and (e.get("status", {}).get("blogger") == "ok" or e.get("status", {}).get("linkedin") == "ok")]
-        if already and "--force" not in sys.argv:
+        if already and not force:
             print("Already posted today (" + already[-1]["product"] + ") — skipping. Use --force to override.")
             sys.exit(0)
     results = [run_product(p, log) for p in products]
