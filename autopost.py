@@ -97,11 +97,16 @@ def gemini_image(prompt, out_path, retries=3):
         r = requests.post(url, json=body, timeout=180, headers={"x-goog-api-key": GEMINI_KEY})
         if r.status_code == 200:
             for part in r.json()["candidates"][0]["content"]["parts"]:
+                if "inline_data" in part and "inlineData" not in part:
+                    part["inlineData"] = part["inline_data"]
                 if "inlineData" in part:
                     os.makedirs(IMG_DIR, exist_ok=True)
                     with open(out_path, "wb") as f:
                         f.write(base64.b64decode(part["inlineData"]["data"]))
                     return out_path
+            print("gemini image: 200 but no inlineData; parts keys:", [list(p.keys()) for p in r.json()["candidates"][0]["content"]["parts"]][:5])
+        else:
+            print("gemini image error", r.status_code, r.text[:400])
         time.sleep(10 * (i+1))
     return None
 
