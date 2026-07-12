@@ -21,8 +21,8 @@ TG_TOKEN     = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT      = os.environ.get("TELEGRAM_CHAT_ID", "")
 SHEET_ID     = os.environ.get("GOOGLE_SHEET_ID", "")   # spreadsheet id from sheet URL
 
-TEXT_MODEL  = "gemini-flash-latest"
-IMAGE_MODEL = "gemini-2.5-flash-image"   # Nano Banana (free tier)
+TEXT_MODEL  = (os.environ.get("TEXT_MODEL") or "gemini-2.5-pro").strip()
+IMAGE_MODEL = (os.environ.get("IMAGE_MODEL") or "gemini-3.1-flash-image").strip()  # Nano Banana 2 (paid key)
 
 ROTATION = ["Rice Husk Ash Powder","Rice Husk Ash Granules","Rice Husk Ash Small Granules",
             "Rice Husk Ash Cylindrical Pellets","Rice Husk Powder","Rice Husk Pellets","Rice Husk"]
@@ -37,6 +37,12 @@ COMPANY  = CONFIG.get("company", "Ambika Rice Mill & Ambika Biotech")
 WEBSITE  = CONFIG.get("website", "www.rhaindia.com")
 WEB_URL  = CONFIG.get("website_url", "https://www.rhaindia.com")
 PHONE    = CONFIG.get("phone", "+91-7381757575")
+
+try:
+    with open("knowledge_base.json") as _kf:
+        KB = json.load(_kf)
+except Exception:
+    KB = {}
 
 LOG_PATH = "status/log.json"
 IMG_DIR  = "status/images"
@@ -87,10 +93,21 @@ PRODUCT-INDUSTRY VALIDATION MATRIX (only write angles marked YES for the selecte
 - Rice Husk Powder: Cattle feed YES, Absorbent YES, Boards YES — industrial steel/concrete/rubber NO.
 - Rice Husk Pellets: Biomass fuel/boilers YES, co-firing YES — everything else NO.
 - Rice Husk (raw): Fuel YES, Agriculture/bedding/substrate YES — industrial silica angles NO.
+ 
+WRITING STYLE (STRICT - friendly, simple, human):
+- Write like a helpful expert explaining to a friend over chai. Warm, confident, zero corporate-robot tone.
+- Short sentences (max ~15 words). Grade-8 simple English - a busy plant manager should skim it in 30 seconds.
+- If a technical term is needed (amorphous silica, SCM, tundish), explain it in 5-6 plain words right there.
+- BANNED words/phrases: leverage, utilize, cutting-edge, synergy, revolutionize, game-changer, unlock, elevate, seamless, robust, holistic, "in today's fast-paced world".
+- Structure every caption: 1 heading line -> 2-line friendly hook -> "Why it matters:" 3-4 short bullet points (each starts with the check mark) -> one simple example or fact (with source if Level A/B) -> short CTA block. Blank line between every block.
+- Bullets: 5-9 words each, benefit-first, no jargon.
+- Blog version may be slightly more detailed but SAME simple language; short paragraphs and bullet lists so it reads easily and ranks for questions people actually search.
 If today's product has no YES match with a fresh industry angle, use a Level C/D company angle (quality control, packaging, export logistics, factory process) instead."""
 
 def build_prompt(product, past_headlines):
     brand = BRAND.replace("{WEBSITE_PLACEHOLDER}", WEBSITE).replace("{PHONE_PLACEHOLDER}", PHONE)
+    if KB:
+        brand += "\n\nCOMPANY KNOWLEDGE BASE (Level C verified facts - prefer these over anything else): " + json.dumps(KB, ensure_ascii=False)[:2500]
     return f"""{brand}
 
 TASK: Write ONE fresh LinkedIn post for: "{product}". Pick a fresh specific angle.
@@ -221,6 +238,35 @@ def fallback_poster(headline, product, caption, out_path):
     img.save(out_path)
     return out_path
 
+
+# ---------------- Compliance & duplicate guards ----------------
+def compliance_check(text):
+    """Returns list of failures; empty list = pass."""
+    fails = []
+    if WEBSITE not in text:
+        fails.append("website missing")
+    digits = re.sub(r"\D", "", PHONE)[-10:]
+    for m in re.findall(r"\+?9?1?[-\s]?\d{10}", text):
+        if re.sub(r"\D", "", m)[-10:] != digits:
+            fails.append("wrong phone number: " + m)
+    for comp in (KB.get("competitors_do_not_mention") or []):
+        if comp and comp.lower() in text.lower():
+            fails.append("competitor mentioned: " + comp)
+    return fails
+
+def too_similar(headline, caption, log):
+    import difflib
+    new_h = (headline or "").lower()
+    new_o = (caption or "").split("\n")[0].lower()
+    for e in log[-15:]:
+        old_h = (e.get("headline") or "").lower()
+        old_o = ((e.get("caption") or "").split("\n")[0] or "").lower()
+        if old_h and difflib.SequenceMatcher(None, new_h, old_h).ratio() > 0.7:
+            return "headline ~" + old_h[:60]
+        if old_o and difflib.SequenceMatcher(None, new_o, old_o).ratio() > 0.7:
+            return "opening ~" + old_o[:60]
+    return None
+
 # ---------------- LinkedIn ----------------
 def linkedin_post(caption, image_path=None):
     """Returns post URL or raises. Needs w_member_social scope."""
@@ -342,9 +388,22 @@ def run_product(product, log):
     entry = {"date": today, "product": product, "status": {}, "headline": ""}
     try:
         data = parse_json(gemini_text(build_prompt(product, past)))
+        sim = too_similar(data.get("headline"), data.get("caption"), log)
+        if sim:
+            print("duplicate detected (", sim, ") - regenerating once")
+            data = parse_json(gemini_text(build_prompt(product, past) +
+                "\n\nCRITICAL: Your previous attempt was too similar to an earlier post (" + sim + "). Produce a COMPLETELY different heading structure, opening line and angle."))
         entry["headline"] = data["headline"]
         full_post = data["caption"] + "\n\n" + data["hashtags"]
         entry["caption"] = full_post
+        entry["imagePrompt"] = data.get("imagePrompt", "")
+        fails = compliance_check(full_post)
+        if fails:
+            entry["status"]["compliance"] = "BLOCKED: " + "; ".join(fails)
+            print("COMPLIANCE BLOCK - not publishing:", fails)
+            log.append(entry)
+            return entry
+        entry["status"]["compliance"] = "ok"
 
         # image (nano banana)
         img_name = f"{today}-{product.lower().replace(' ', '-')}.png"
