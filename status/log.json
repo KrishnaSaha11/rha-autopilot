@@ -87,5 +87,13 @@
   "image": "images/2026-07-12-rice-husk.png",
   "linkedin_url": "https://www.linkedin.com/feed/update/urn:li:share:7481943778774171648",
   "blogger_url": "https://www.rhaindia.com/blog/raw-rice-husk-for-commercial-agriculture-bedding-soil-amelioration-and"
+ },
+ {
+  "date": "2026-07-12",
+  "product": "Rice Husk",
+  "status": {
+   "generation": "failed: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
+  },
+  "headline": ""
  }
 ]
