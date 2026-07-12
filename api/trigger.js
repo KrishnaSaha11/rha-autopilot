@@ -9,6 +9,7 @@ export default async function handler(req, res) {
   const inputs = {};
   if (req.query.product) inputs.product = req.query.product.toString();
   if (req.query.force === "1") inputs.force = "true";
+  if (req.query.format) inputs.format = req.query.format.toString();
   const r = await fetch(
     `https://api.github.com/repos/${repo}/actions/workflows/daily.yml/dispatches`,
     {
