@@ -12,24 +12,34 @@ on:
         description: "Force post even if already posted today"
         required: false
         default: "false"
+      format:
+        description: "Post format: image | video | auto"
+        required: false
+        default: ""
+
 permissions:
-  contents: write
+  contents: write            # to commit log.json + images back to repo
+
 jobs:
   autopost:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - run: pip install requests google-auth pillow
+
       - name: Run autopost
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TEXT_MODEL: ${{ secrets.TEXT_MODEL }}
-          IMAGE_MODEL: ${{ secrets.IMAGE_MODEL }}
           PRODUCT_OVERRIDE: ${{ github.event.inputs.product }}
           FORCE: ${{ github.event.inputs.force }}
+          FORMAT: ${{ github.event.inputs.format }}
+          VIDEO_MODEL: ${{ secrets.VIDEO_MODEL }}
+          VIDEO_MODE: ${{ secrets.VIDEO_MODE }}
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           LINKEDIN_PERSON_URN: ${{ secrets.LINKEDIN_PERSON_URN }}
           WEBSITE_REPO: ${{ secrets.WEBSITE_REPO }}
@@ -41,10 +51,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
         run: python autopost.py
+
       - name: Commit log + images
         run: |
-          git config user.name "KrishnaSaha11"
-          git config user.email "KrishnaSaha11@users.noreply.github.com"
-          git add status/log.json status/images/ || true
+          git config user.name "rha-bot"
+          git config user.email "bot@rhaindia.com"
+          git add status/log.json status/images/ status/videos/ || true
           git commit -m "autopost $(date +%F)" || echo "nothing to commit"
           git push
