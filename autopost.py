@@ -23,6 +23,10 @@ SHEET_ID     = os.environ.get("GOOGLE_SHEET_ID", "")   # spreadsheet id from she
 
 TEXT_MODEL  = (os.environ.get("TEXT_MODEL") or "gemini-2.5-pro").strip()
 IMAGE_MODEL = (os.environ.get("IMAGE_MODEL") or "gemini-3.1-flash-image").strip()  # Nano Banana 2 (paid key)
+VIDEO_MODEL = (os.environ.get("VIDEO_MODEL") or "veo-3.0-generate-001").strip()
+FORMAT      = (os.environ.get("FORMAT") or "").strip().lower()          # "", image, video, auto
+VIDEO_MODE  = (os.environ.get("VIDEO_MODE") or "off").strip().lower()   # off | auto (owner-approved alternate days)
+VID_DIR     = "status/videos"
 
 ROTATION = ["Rice Husk Ash Powder","Rice Husk Ash Granules","Rice Husk Ash Small Granules",
             "Rice Husk Ash Cylindrical Pellets","Rice Husk Powder","Rice Husk Pellets","Rice Husk"]
@@ -166,6 +170,61 @@ def gemini_image(prompt, out_path, retries=3):
     return None
 
 
+
+# ---------------- Video generation (Veo, paid) ----------------
+def gemini_video(prompt, out_path):
+    """Generates an ~8s cinematic clip via Veo. Returns path or None. Never raises."""
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{VIDEO_MODEL}:predictLongRunning"
+        vprompt = ("Cinematic 8-second B2B industrial marketing shot, smooth camera movement, "
+                   "professional color grade, no text artifacts. ") + (prompt or "")[:700]
+        r = requests.post(url, headers={"x-goog-api-key": GEMINI_KEY},
+                          json={"instances": [{"prompt": vprompt}],
+                                "parameters": {"aspectRatio": "16:9"}}, timeout=60)
+        if r.status_code != 200:
+            print("veo start error", r.status_code, r.text[:300])
+            return None
+        op = r.json().get("name")
+        if not op:
+            print("veo: no operation name")
+            return None
+        for _ in range(40):  # poll up to ~6-7 min
+            time.sleep(10)
+            pr = requests.get(f"https://generativelanguage.googleapis.com/v1beta/{op}",
+                              headers={"x-goog-api-key": GEMINI_KEY}, timeout=60)
+            if pr.status_code != 200:
+                continue
+            j = pr.json()
+            if j.get("done"):
+                if "error" in j:
+                    print("veo failed:", str(j["error"])[:300])
+                    return None
+                resp = j.get("response", {})
+                samples = (resp.get("generateVideoResponse", {}) or {}).get("generatedSamples") or                           resp.get("generatedSamples") or []
+                uri = None
+                for smp in samples:
+                    uri = ((smp.get("video") or {}).get("uri")) or smp.get("uri")
+                    if uri:
+                        break
+                if not uri:
+                    print("veo: no video uri in response", str(resp)[:300])
+                    return None
+                dl = requests.get(uri, headers={"x-goog-api-key": GEMINI_KEY}, timeout=300)
+                if dl.status_code != 200:
+                    dl = requests.get(uri + ("&" if "?" in uri else "?") + "key=" + GEMINI_KEY, timeout=300)
+                if dl.status_code == 200 and len(dl.content) > 100000:
+                    os.makedirs(VID_DIR, exist_ok=True)
+                    with open(out_path, "wb") as f:
+                        f.write(dl.content)
+                    return out_path
+                print("veo download error", dl.status_code)
+                return None
+        print("veo: timed out")
+        return None
+    except Exception as e:
+        print("veo exception", e)
+        return None
+
 # ---------------- Pollinations.ai (free, keyless AI images) ----------------
 def pollinations_image(prompt, out_path, retries=2):
     q = requests.utils.quote((prompt or "")[:900])
@@ -268,20 +327,25 @@ def too_similar(headline, caption, log):
     return None
 
 # ---------------- LinkedIn ----------------
-def linkedin_post(caption, image_path=None):
-    """Returns post URL or raises. Needs w_member_social scope."""
+def linkedin_post(caption, image_path=None, video_path=None):
+    """Returns post URL or raises. Needs w_member_social scope. Video takes priority if given."""
     H = {"Authorization": f"Bearer {LI_TOKEN}", "X-Restli-Protocol-Version": "2.0.0"}
-    media = []
-    if image_path:
+    media, category = [], "NONE"
+    media_file, recipe = None, None
+    if video_path and os.path.exists(video_path):
+        media_file, recipe, category = video_path, "urn:li:digitalmediaRecipe:feedshare-video", "VIDEO"
+    elif image_path and os.path.exists(image_path):
+        media_file, recipe, category = image_path, "urn:li:digitalmediaRecipe:feedshare-image", "IMAGE"
+    if media_file:
         reg = requests.post("https://api.linkedin.com/v2/assets?action=registerUpload", headers=H, json={
             "registerUploadRequest": {
-                "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
+                "recipes": [recipe],
                 "owner": LI_PERSON,
                 "serviceRelationships": [{"relationshipType":"OWNER","identifier":"urn:li:userGeneratedContent"}]
             }}).json()
         up = reg["value"]["uploadMechanism"]["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]["uploadUrl"]
         asset = reg["value"]["asset"]
-        with open(image_path, "rb") as f:
+        with open(media_file, "rb") as f:
             requests.put(up, headers={"Authorization": f"Bearer {LI_TOKEN}"}, data=f.read()).raise_for_status()
         media = [{"status":"READY","media": asset}]
     body = {
@@ -289,7 +353,7 @@ def linkedin_post(caption, image_path=None):
         "lifecycleState": "PUBLISHED",
         "specificContent": {"com.linkedin.ugc.ShareContent": {
             "shareCommentary": {"text": caption},
-            "shareMediaCategory": "IMAGE" if media else "NONE",
+            "shareMediaCategory": category,
             **({"media": media} if media else {})
         }},
         "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
@@ -420,10 +484,25 @@ def run_product(product, log):
                 entry["status"]["image"] = "ok (fallback poster)" if img_ok else "failed"
         entry["image"] = f"images/{img_name}" if img_ok else None
 
-        # LinkedIn
+        # format decision: manual FORMAT wins; else VIDEO_MODE=auto alternates by date; default image
+        want_video = (FORMAT == "video") or (FORMAT in ("", "auto") and VIDEO_MODE == "auto"
+                       and datetime.date.today().toordinal() % 2 == 0 and FORMAT != "image")
+        vid_path = None
+        if want_video:
+            vname = f"{today}-{product.lower().replace(' ', '-')}.mp4"
+            vid_path = gemini_video(data.get("imagePrompt", ""), os.path.join(VID_DIR, vname))
+            if vid_path:
+                entry["video"] = f"videos/{vname}"
+                entry["status"]["video"] = "ok (veo)"
+            else:
+                entry["status"]["video"] = "failed - posted with image instead"
+
+        # LinkedIn (video if ready, else image)
         try:
-            entry["linkedin_url"] = linkedin_post(full_post, img_path if img_ok else None)
-            entry["status"]["linkedin"] = "ok"
+            entry["linkedin_url"] = linkedin_post(full_post,
+                                                  img_path if img_ok else None,
+                                                  vid_path)
+            entry["status"]["linkedin"] = "ok" + (" (video)" if vid_path else "")
         except Exception as e:
             entry["status"]["linkedin"] = f"failed: {e}"
 
