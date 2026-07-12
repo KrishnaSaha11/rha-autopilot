@@ -65,6 +65,11 @@
       <option>Rice Husk</option>
     </select>
   </div>
+  <label style="margin-top:2px">Format</label>
+  <div style="display:flex;gap:16px;margin:2px 0 12px;font-size:14px;font-weight:600">
+    <label style="display:flex;align-items:center;gap:6px;margin:0;text-transform:none;letter-spacing:0;color:var(--ink);font-size:14px"><input type="radio" name="fmt" value="image" checked style="width:18px;height:18px"> 🖼 Image</label>
+    <label style="display:flex;align-items:center;gap:6px;margin:0;text-transform:none;letter-spacing:0;color:var(--ink);font-size:14px"><input type="radio" name="fmt" value="video" style="width:18px;height:18px"> 🎬 Video (~2-3 min extra)</label>
+  </div>
   <button class="go" id="goBtn">⚡ Generate &amp; Post Now</button>
   <div class="note">Kuch mat dabao toh roz 11:00 AM par auto-post. Specific product chuna toh wahi banega (aaj already posted ho toh bhi).</div>
   <div class="msg" id="msg"></div>
@@ -95,6 +100,8 @@ $("goBtn").addEventListener("click", async () => {
   try{
     let url = "/api/trigger?k=" + encodeURIComponent(k);
     if(product){ url += "&product=" + encodeURIComponent(product) + "&force=1"; }
+    const fmt = (document.querySelector('input[name="fmt"]:checked') || {}).value;
+    if(fmt === "video"){ url += "&format=video" + (product ? "" : "&force=1"); }
     const r = await fetch(url);
     const j = await r.json();
     if(j.ok){
@@ -146,6 +153,7 @@ fetch("log.json?t=" + Date.now()).then(r => r.json()).then(log => {
         (e.linkedin_url ? '<a class="abtn li" href="' + esc(e.linkedin_url) + '" target="_blank">LinkedIn kholo ↗</a>' : '') +
       '</div>' +
       (e.caption ? '<div class="cap" id="cap-' + i + '">' + esc(e.caption) + '</div>' : '') +
+      (e.video ? '<video src="' + esc(e.video) + '" controls playsinline style="max-width:280px;width:100%;border-radius:8px;border:1px solid var(--line);margin-top:10px;display:block"></video>' : '') +
       (e.image ? '<img src="' + esc(e.image) + '" loading="lazy">' : '');
     el.appendChild(div);
   });
