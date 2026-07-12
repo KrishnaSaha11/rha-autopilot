@@ -95,5 +95,13 @@
    "generation": "failed: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
   },
   "headline": ""
+ },
+ {
+  "date": "2026-07-12",
+  "product": "Rice Husk",
+  "status": {
+   "generation": "failed: 404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
+  },
+  "headline": ""
  }
 ]
