@@ -52,12 +52,22 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          # ----- daily email outreach (GoDaddy Titan) -----
+          EMAIL_ENABLED: ${{ secrets.EMAIL_ENABLED }}     # set to "on" to activate
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}             # optional; default smtpout.secureserver.net
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}             # optional; default 465
+          SMTP_USER: ${{ secrets.SMTP_USER }}             # sales@rhaindia.com
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}             # mailbox password
+          FROM_NAME: ${{ secrets.FROM_NAME }}             # optional display name
+          EMAILS_PER_DAY: ${{ secrets.EMAILS_PER_DAY }}   # optional; default 10
+          BUYER_CSV: ${{ secrets.BUYER_CSV }}             # whole buyer CSV (keeps list private)
+          UNSUB_MAILTO: ${{ secrets.UNSUB_MAILTO }}       # optional; default = SMTP_USER
         run: python autopost.py
 
-      - name: Commit log + images
+      - name: Commit log + images + email state
         run: |
           git config user.name "KrishnaSaha11"
           git config user.email "KrishnaSaha11@users.noreply.github.com"
-          git add status/log.json status/images/ status/videos/ || true
+          git add status/log.json status/images/ status/videos/ status/email_state.json || true
           git commit -m "autopost $(date +%F)" || echo "nothing to commit"
           git push
