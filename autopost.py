@@ -460,9 +460,37 @@ def sheet_log(entry):
 
 # ---------------- Telegram ----------------
 def telegram(msg):
+    """Sends text; auto-splits long messages (Telegram 4096-char limit)."""
     if not TG_TOKEN: return
-    requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-        json={"chat_id": TG_CHAT, "text": msg, "disable_web_page_preview": True})
+    msg = msg or ""
+    for i in range(0, max(1, len(msg)), 4000):
+        chunk = msg[i:i+4000]
+        if not chunk: break
+        try:
+            requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+                json={"chat_id": TG_CHAT, "text": chunk, "disable_web_page_preview": True}, timeout=60)
+        except Exception as e:
+            print("telegram text error", e)
+
+def telegram_photo(img_path, caption=""):
+    if not TG_TOKEN or not img_path or not os.path.exists(img_path): return
+    try:
+        with open(img_path, "rb") as f:
+            requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
+                data={"chat_id": TG_CHAT, "caption": (caption or "")[:1024]},
+                files={"photo": f}, timeout=120)
+    except Exception as e:
+        print("telegram photo error", e)
+
+def telegram_video(vid_path, caption=""):
+    if not TG_TOKEN or not vid_path or not os.path.exists(vid_path): return
+    try:
+        with open(vid_path, "rb") as f:
+            requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendVideo",
+                data={"chat_id": TG_CHAT, "caption": (caption or "")[:1024]},
+                files={"video": f}, timeout=300)
+    except Exception as e:
+        print("telegram video error", e)
 
 # ---------------- Email outreach (GoDaddy Titan SMTP) ----------------
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
@@ -742,17 +770,33 @@ if __name__ == "__main__":
             sys.exit(0)
     results = [run_product(p, log) for p in products]
     save_log(log)
-    lines = [f"🏭 RHA Autopilot — {datetime.date.today()}"]
+    # ---- Rich Telegram report: image + video + full caption/keywords + links + email ----
+    telegram(f"🏭 RHA Autopilot — {datetime.date.today()}")
     for r in results:
         s = r["status"]
-        lines.append(f"\n{r['product']}\n📝 {r.get('headline','—')}"
-                     f"\nin: {s.get('linkedin','—')} | blog: {s.get('blogger','—')} | img: {s.get('image','—')}"
-                     f"\n📧 email: {s.get('email','—')}"
-                     + (f"\n🔗 {r.get('linkedin_url','')}" if r.get('linkedin_url') else ""))
+        cap = f"{r.get('product','')} — {r.get('headline','')}"
+        if r.get("image"):
+            telegram_photo(os.path.join("status", r["image"]), caption=cap)
+        if r.get("video"):
+            telegram_video(os.path.join("status", r["video"]), caption=cap)
         em = r.get("email") or {}
+        who = ""
         if em.get("recipients"):
-            who = ", ".join((x.get("company") or x.get("email")) +
-                            ("✓" if x.get("status") == "sent" else "✗") for x in em["recipients"])
-            lines.append("→ sent to: " + who[:600])
-    telegram("\n".join(lines))
+            who = "\n📧 Sent to: " + ", ".join(
+                (x.get("company") or x.get("email")) + ("✓" if x.get("status") == "sent" else "✗")
+                for x in em["recipients"])
+        detail = (
+            f"📦 {r.get('product','')}\n"
+            f"📝 {r.get('headline','—')}\n\n"
+            f"{r.get('caption','')}\n\n"          # full caption INCLUDES hashtags/keywords
+            f"────────\n"
+            f"🔵 LinkedIn: {s.get('linkedin','—')}"
+            + (f"\n🔗 {r.get('linkedin_url','')}" if r.get('linkedin_url') else "") + "\n"
+            f"📰 Blog: {s.get('blogger','—')}"
+            + (f"\n🔗 {r.get('blogger_url','')}" if r.get('blogger_url') else "") + "\n"
+            f"🖼 Image: {s.get('image','—')}\n"
+            f"📧 Email: {s.get('email','—')}"
+            + who
+        )
+        telegram(detail)
     print(json.dumps(results, indent=1, ensure_ascii=False))
