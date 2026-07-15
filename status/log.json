@@ -203,5 +203,29 @@
   "image": "images/2026-07-15-rice-husk.png",
   "linkedin_url": "https://www.linkedin.com/feed/update/urn:li:share:7483039169431384064",
   "blogger_url": "https://www.rhaindia.com/blog/commercial-horticulture-using-raw-rice-husk-as-a-natural-growing-subst"
+ },
+ {
+  "date": "2026-07-15",
+  "product": "Rice Husk Powder",
+  "status": {
+   "compliance": "ok",
+   "image": "ok (nano banana)",
+   "linkedin": "ok",
+   "blogger": "ok",
+   "email": "no SMTP_PASS secret"
+  },
+  "headline": "🧽 Clean Up Factory Spills Naturally With Rice Husk Powder",
+  "caption": "🧽 Clean Up Factory Spills Naturally With Rice Husk Powder\n\nIndustrial oil spills are a messy problem for any plant manager. You do not need expensive synthetic chemicals to clean them up.\n\nWhy it matters:\n✔ Soaks up oil and chemicals instantly\n✔ 100% natural and earth-friendly material\n✔ Consistent grind for maximum absorption\n✔ Easy to sweep up after use\n\nOur tested specification guarantees a finely ground, tan organic powder. It is pure ground husk, not ash. This gives it a huge surface area. That makes it a perfect industrial oil absorbent or filler for wood-polymer composites.\n\nWe are a leading industrial raw material exporter India trusts. Whether you need a bulk supplier or an OEM manufacturer, we can help. We are a top rice husk exporter UAE and Germany buyers trust.\n\nwww.rhaindia.com\n+91-7381757575\nContact us for bulk orders, OEM supply and export inquiries.\n\n#RiceHuskPowder #IndustrialAbsorbent #SpillControl #RawMaterialExporter #EcoFriendlyMaterials #WoodPolymerComposites #RHAIndia",
+  "imagePrompt": "Photorealistic industrial marketing scene at a clean factory warehouse. In the foreground, a branded Ambika bag (navy blue top, golden crown logo 'AMBIKA RHA', yellow bottom with product name 'RICE HUSK POWDER', 'EXPORT QUALITY PRODUCT OF INDIA'). Next to the bag is a pile of tan-colored organic ground husk powder being used to soak up a small machinery oil spill on a clean concrete floor. NO molten steel, NO grey ash. Bright natural warehouse lighting. Text overlay: 'www.rhaindia.com'.",
+  "image": "images/2026-07-15-rice-husk-powder.png",
+  "linkedin_url": "https://www.linkedin.com/feed/update/urn:li:share:7483088039565598720",
+  "blogger_url": "https://www.rhaindia.com/blog/how-to-use-rice-husk-powder-as-an-eco-friendly-industrial-oil-absorben",
+  "email": {
+   "enabled": true,
+   "sent": 0,
+   "failed": 0,
+   "recipients": [],
+   "note": "no SMTP_PASS secret"
+  }
  }
 ]
