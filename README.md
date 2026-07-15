@@ -49,3 +49,35 @@ BRAND block (fact sheet + keywords + rules) is ALREADY MERGED in autopost.py. �
 - 1 product/day by weekday rotation (Mon=Powder ... Sun=Rice Husk). `python autopost.py --all` for testing only.
 - Duplicate prevention via log.json history.
 - Failures isolated per platform; Telegram shows exactly what failed.
+
+## Daily Email Outreach (NEW — GoDaddy Professional Email powered by Titan)
+
+After the blog post is published, the system emails the blog link to the next **10 buyers** from a rotating list. Fully isolated — if email fails, posting is unaffected.
+
+**How it works**
+- Buyer list lives in the `BUYER_CSV` **secret** (NOT committed — keeps the lead database private even though this repo is public). Script auto-picks the best email per row (Primary → Sales → Export → Procurement → General → Technical), cleans junk/placeholder addresses, and de-dupes.
+- Rotation pointer stored in `status/email_state.json` (only an offset + counts — no emails, safe to commit). Next day continues from where it stopped; wraps around at the end.
+- Each email: friendly B2B copy + blog link + company intro + phone/website signature + **unsubscribe** line and `List-Unsubscribe` header (protects sender reputation of the primary mailbox).
+- Full recipient list (who got it, sent/failed) goes to **Telegram** and the **Google Sheet** (both private). The public mission-control page shows **counts only**.
+- Guards: won't double-send the same day; skips entirely on `--all` test runs.
+
+**Secrets to add (Settings → Secrets → Actions)**
+
+| Secret | Value | Notes |
+|---|---|---|
+| EMAIL_ENABLED | `on` | leave unset/`off` to keep email disabled |
+| SMTP_USER | `sales@rhaindia.com` | the sending mailbox |
+| SMTP_PASS | mailbox password | Titan mailbox password |
+| BUYER_CSV | *(paste whole CSV)* | keeps buyer list private |
+| FROM_NAME | e.g. `RHA India — Ambika Biotech` | optional display name |
+| SMTP_HOST | *(optional)* | default `smtpout.secureserver.net` |
+| SMTP_PORT | *(optional)* | default `465` (SSL). Use `587` if 465 blocked |
+| EMAILS_PER_DAY | *(optional)* | default `10` |
+| UNSUB_MAILTO | *(optional)* | default = SMTP_USER |
+
+**One-time Titan setup (in `sales@rhaindia.com` Titan webmail):**
+1. Settings (gear) → **Enable Titan on other apps** (turn ON third-party access).
+2. **Turn OFF 2FA** on this mailbox — Titan blocks third-party SMTP while 2FA is on.
+3. SMTP: `smtpout.secureserver.net`, port 465, SSL, username = full email, password = mailbox password.
+
+**Test:** add secrets → Actions → Run workflow (manual, blank product) → check: 10 emails delivered, Telegram shows recipient list, Google Sheet email column filled, `status/email_state.json` offset advanced.
