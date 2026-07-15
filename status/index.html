@@ -82,6 +82,17 @@
   <div class="st"><b id="stL">0</b><small>LinkedIn</small></div>
 </div>
 
+<div class="deck" id="emailDeck" style="display:none">
+  <label>📧 Email Outreach</label>
+  <div class="stats" style="margin-bottom:0">
+    <div class="st"><b id="emT">0</b><small>Total sent</small></div>
+    <div class="st"><b id="emL">0</b><small>Last batch</small></div>
+    <div class="st"><b id="emF">0</b><small>Last failed</small></div>
+    <div class="st"><b id="emN">0/0</b><small>List pos.</small></div>
+  </div>
+  <div class="note" id="emDate" style="margin-top:10px"></div>
+</div>
+
 <h2>📊 Posted History</h2>
 <div id="list"><div class="empty">Loading…</div></div>
 
@@ -144,7 +155,8 @@ fetch("log.json?t=" + Date.now()).then(r => r.json()).then(log => {
       '<div class="prod">' + esc(e.product||"") + '</div>' +
       '<div class="head">' + esc(e.headline||"(failed)") + '</div>' +
       '<div class="date">' + esc(e.date||"") + '</div>' +
-      '<div class="badges">' + B("Blog", s.blogger) + B("LinkedIn", s.linkedin) + B("Image", s.image) + '</div>' +
+      '<div class="badges">' + B("Blog", s.blogger) + B("LinkedIn", s.linkedin) + B("Image", s.image) +
+        (s.email ? '<span class="b ' + (/[1-9]\d* sent/.test(s.email) ? "" : "no") + '">📧 ' + esc(s.email) + '</span>' : '') + '</div>' +
       '<div class="acts">' +
         (e.caption ? '<button class="abtn" data-cap="' + i + '">📄 Caption dekho</button>' : '') +
         (e.caption ? '<button class="abtn" data-copy="' + i + '">Copy caption</button>' : '') +
@@ -158,6 +170,17 @@ fetch("log.json?t=" + Date.now()).then(r => r.json()).then(log => {
     el.appendChild(div);
   });
 }).catch(() => $("list").innerHTML = '<div class="empty">log.json nahi mila — ek baar Post Now dabao.</div>');
+
+fetch("email_state.json?t=" + Date.now()).then(r => r.json()).then(st => {
+  $("emailDeck").style.display = "block";
+  $("emT").textContent = st.sent_total || 0;
+  $("emL").textContent = st.sent_today || 0;
+  $("emF").textContent = st.last_failed || 0;
+  $("emN").textContent = (st.offset || 0) + "/" + (st.list_size || 0);
+  $("emDate").textContent = st.last_date
+    ? ("Last batch: " + st.last_date + " · recipient list is private — see Telegram / Google Sheet")
+    : "No email batch sent yet.";
+}).catch(() => {});
 
 document.addEventListener("click", e => {
   const t = e.target;
