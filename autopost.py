@@ -6,6 +6,10 @@ Run: python autopost.py            (posts today's rotation product)
 """
 import os, json, base64, datetime, time, sys, re
 import requests
+import smtplib, ssl, csv, io
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
 
 # ---------------- config ----------------
 GEMINI_KEY   = os.environ["GEMINI_API_KEY"].strip()
@@ -27,6 +31,18 @@ VIDEO_MODEL = (os.environ.get("VIDEO_MODEL") or "veo-3.0-generate-001").strip()
 FORMAT      = (os.environ.get("FORMAT") or "").strip().lower()          # "", image, video, auto
 VIDEO_MODE  = (os.environ.get("VIDEO_MODE") or "off").strip().lower()   # off | auto (owner-approved alternate days)
 VID_DIR     = "status/videos"
+
+# ---------------- Email outreach config (GoDaddy Professional Email powered by Titan) ----------------
+EMAIL_ENABLED  = (os.environ.get("EMAIL_ENABLED") or "off").strip().lower() in ("on","1","true","yes")
+SMTP_HOST      = (os.environ.get("SMTP_HOST") or "smtpout.secureserver.net").strip()  # Titan-powered Pro Email
+SMTP_PORT      = int(os.environ.get("SMTP_PORT") or "465")                            # 465 SSL (or 587 STARTTLS)
+SMTP_USER      = (os.environ.get("SMTP_USER") or "sales@rhaindia.com").strip()
+SMTP_PASS      = os.environ.get("SMTP_PASS") or ""                                    # mailbox password (secret)
+FROM_NAME      = os.environ.get("FROM_NAME") or "RHA India — Ambika Biotech"
+EMAILS_PER_DAY = int(os.environ.get("EMAILS_PER_DAY") or "10")
+BUYER_CSV      = os.environ.get("BUYER_CSV") or ""       # whole CSV content stored as a GitHub secret (keeps list private)
+UNSUB_MAILTO   = (os.environ.get("UNSUB_MAILTO") or SMTP_USER).strip()
+EMAIL_STATE_PATH = "status/email_state.json"
 
 ROTATION = ["Rice Husk Ash Powder","Rice Husk Ash Granules","Rice Husk Ash Small Granules",
             "Rice Husk Ash Cylindrical Pellets","Rice Husk Powder","Rice Husk Pellets","Rice Husk"]
@@ -429,9 +445,13 @@ def sheet_log(entry):
     """Appends one row per post to the tracking Google Sheet."""
     if not SHEET_ID: return
     tok = google_access_token()
+    em = entry.get("email") or {}
+    email_detail = "; ".join(f"{x.get('company','')} <{x.get('email','')}> {x.get('status','')}"
+                             for x in em.get("recipients", []))
     row = [entry.get("date",""), entry.get("product",""), entry.get("headline",""),
            entry.get("linkedin_url",""), entry.get("blogger_url",""),
-           entry.get("image",""), json.dumps(entry.get("status",{}), ensure_ascii=False)]
+           entry.get("image",""), json.dumps(entry.get("status",{}), ensure_ascii=False),
+           email_detail]
     requests.post(
         f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/Sheet1!A1:append",
         params={"valueInputOption": "USER_ENTERED"},
@@ -443,6 +463,180 @@ def telegram(msg):
     if not TG_TOKEN: return
     requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
         json={"chat_id": TG_CHAT, "text": msg, "disable_web_page_preview": True})
+
+# ---------------- Email outreach (GoDaddy Titan SMTP) ----------------
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+_PLACEHOLDER = re.compile(r"first\.?last|name@|example\.|yourcompany|xxxx|test@", re.I)
+_EMAIL_COLS = ["Primary Email (verified)", "Sales Email", "Export Email",
+               "Procurement Email", "General Email", "Technical Email"]
+_NAME_COLS  = ["Contact Name", "Name", "Full Name", "Contact Person", "Contact"]
+
+def _clean_email(raw):
+    if not raw: return ""
+    m = _EMAIL_RE.search(raw)
+    if not m: return ""
+    em = m.group(0).lower().strip(".")
+    if _PLACEHOLDER.search(em): return ""
+    return em
+
+def load_buyers():
+    """Reads buyer list from BUYER_CSV secret (preferred) or a local CSV. Returns [{email,company,country,name}] deduped."""
+    text = BUYER_CSV
+    if not text:
+        for p in ("data/buyers.csv", "buyers.csv", "Ambika_Buyer_Contacts.csv"):
+            if os.path.exists(p):
+                with open(p, encoding="utf-8-sig") as f: text = f.read()
+                break
+    if not text: return []
+    rows = list(csv.DictReader(io.StringIO(text)))
+    out, seen = [], set()
+    for r in rows:
+        em = ""
+        for c in _EMAIL_COLS:
+            em = _clean_email((r.get(c) or "").strip())
+            if em: break
+        if not em or em in seen: continue
+        seen.add(em)
+        name = ""
+        for c in _NAME_COLS:
+            if (r.get(c) or "").strip(): name = r[c].strip(); break
+        out.append({"email": em, "company": (r.get("Company") or "").strip(),
+                    "country": (r.get("Country") or "").strip(), "name": name})
+    return out
+
+def load_email_state():
+    try:
+        with open(EMAIL_STATE_PATH) as f: return json.load(f)
+    except Exception:
+        return {"offset": 0, "last_date": "", "sent_today": 0, "sent_total": 0}
+
+def save_email_state(st):
+    os.makedirs("status", exist_ok=True)
+    with open(EMAIL_STATE_PATH, "w") as f: json.dump(st, f, indent=1, ensure_ascii=False)
+
+def build_email(name, subject, blog_url, product, blog_desc):
+    """Returns (text, html) — professional B2B outreach linking today's blog post."""
+    greeting = f"Dear {name}," if name else "Hello,"
+    intro = blog_desc or f"We have just published a short technical note on {product} and where it adds value in industry."
+    cta_url = blog_url or (WEB_URL + "/blog")
+    text = f"""{greeting}
+
+{intro}
+
+Read the full article here:
+{cta_url}
+
+A quick note on who we are: {COMPANY} (brand: RHA India) manufactures and exports Rice Husk Ash and rice husk products from Sambalpur, India. Our RHA is high-silica (SiO2 92% min, tundish grade) and serves steel plants, foundries, refractories, and construction. We are export-ready with bulk supply and custom packaging.
+
+If you would like a free sample, COA/TDS, or an FOB quotation, simply reply to this email.
+
+Best regards,
+Rohit Berlia
+{COMPANY} — RHA India
+Phone / WhatsApp: {PHONE}
+{WEB_URL}
+
+--
+You received this email because your company was identified as a potential industrial buyer of rice husk ash / silica materials. If you would prefer not to receive these updates, reply with "unsubscribe" and we will remove you immediately."""
+
+    safe = lambda s: (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    html = f"""<!doctype html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#ECEAE4;font-family:Arial,Helvetica,sans-serif;color:#22303C">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ECEAE4;padding:20px 0">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#F7F5F0;border:1px solid #CFC9BC;border-radius:12px;overflow:hidden">
+  <tr><td style="background:#22303C;padding:18px 24px">
+    <span style="font-size:18px;font-weight:bold;color:#ffffff;letter-spacing:.5px">RHA <span style="color:#C9A35C">INDIA</span></span>
+    <span style="color:#9AA4AD;font-size:12px"> &nbsp;·&nbsp; Ambika Rice Mill &amp; Ambika Biotech</span>
+  </td></tr>
+  <tr><td style="padding:26px 24px 8px">
+    <p style="margin:0 0 14px;font-size:15px">{safe(greeting)}</p>
+    <p style="margin:0 0 18px;font-size:15px;line-height:1.6">{safe(intro)}</p>
+    <p style="margin:0 0 22px"><a href="{safe(cta_url)}" style="background:#C2571B;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:bold;display:inline-block">Read the full article →</a></p>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#5A6672">
+      <b style="color:#22303C">{safe(COMPANY)}</b> (brand: RHA India) manufactures and exports Rice Husk Ash and rice husk products from Sambalpur, India. Our RHA is high-silica (<b>SiO₂ 92% min</b>, tundish grade) and serves steel plants, foundries, refractories and construction — export-ready, bulk supply, custom packaging.
+    </p>
+    <p style="margin:0 0 22px;font-size:14px;line-height:1.6">
+      Would you like a free <b>sample</b>, <b>COA / TDS</b>, or an <b>FOB quotation</b>? Just reply to this email.
+    </p>
+  </td></tr>
+  <tr><td style="padding:0 24px 22px">
+    <table role="presentation" width="100%" style="border-top:1px solid #CFC9BC"><tr><td style="padding-top:16px;font-size:13px;line-height:1.7;color:#5A6672">
+      <b style="color:#22303C">Rohit Berlia</b><br>
+      {safe(COMPANY)} — RHA India<br>
+      Phone / WhatsApp: <a href="tel:{safe(PHONE)}" style="color:#C2571B;text-decoration:none">{safe(PHONE)}</a><br>
+      <a href="{safe(WEB_URL)}" style="color:#0A66C2;text-decoration:none">{safe(WEB_URL)}</a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="background:#ECEAE4;padding:14px 24px;font-size:11px;color:#9AA4AD;line-height:1.5">
+    You received this email because your company was identified as a potential industrial buyer of rice husk ash / silica materials.
+    If you would prefer not to receive these updates, <a href="mailto:{safe(UNSUB_MAILTO)}?subject=unsubscribe" style="color:#5A6672">click here to unsubscribe</a> or reply with "unsubscribe".
+  </td></tr>
+</table>
+</td></tr></table></body></html>"""
+    return text, html
+
+def send_one_email(to_email, subject, text, html):
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = formataddr((FROM_NAME, SMTP_USER))
+    msg["To"] = to_email
+    msg["Reply-To"] = SMTP_USER
+    msg["List-Unsubscribe"] = f"<mailto:{UNSUB_MAILTO}?subject=unsubscribe>"
+    msg.attach(MIMEText(text, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+    ctx = ssl.create_default_context()
+    if SMTP_PORT == 465:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=60) as s:
+            s.login(SMTP_USER, SMTP_PASS)
+            s.sendmail(SMTP_USER, [to_email], msg.as_string())
+    else:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=60) as s:
+            s.ehlo(); s.starttls(context=ctx); s.ehlo()
+            s.login(SMTP_USER, SMTP_PASS)
+            s.sendmail(SMTP_USER, [to_email], msg.as_string())
+
+def run_email_campaign(data, today, blog_url, product):
+    """Sends EMAILS_PER_DAY emails to the next rotating batch of buyers. Never raises."""
+    result = {"enabled": EMAIL_ENABLED, "sent": 0, "failed": 0, "recipients": [], "note": ""}
+    if "--all" in sys.argv:
+        result["note"] = "skipped (--all test run)"; return result
+    if not EMAIL_ENABLED:
+        result["note"] = "disabled"; return result
+    if not SMTP_PASS:
+        result["note"] = "no SMTP_PASS secret"; return result
+    buyers = load_buyers()
+    if not buyers:
+        result["note"] = "no buyers loaded"; return result
+    st = load_email_state()
+    if st.get("last_date") == today and st.get("sent_today"):
+        result["note"] = "already sent today"; return result
+    n = len(buyers)
+    off = st.get("offset", 0) % n
+    count = min(EMAILS_PER_DAY, n)
+    batch = [buyers[(off + i) % n] for i in range(count)]
+    subject = "".join(ch for ch in (data.get("blogTitle") or data.get("headline") or "") if ord(ch) < 0x2600).strip()
+    subject = (subject[:120] or f"{product} — RHA India").strip()
+    blog_desc = re.sub(r"\s+", " ", (data.get("caption") or "").split("\n")[0]).strip()
+    blog_desc = "".join(ch for ch in blog_desc if ord(ch) < 0x2600).strip()[:220]
+    for b in batch:
+        try:
+            text, html = build_email(b["name"], subject, blog_url, product, blog_desc)
+            send_one_email(b["email"], subject, text, html)
+            result["sent"] += 1
+            result["recipients"].append({**b, "status": "sent"})
+        except Exception as e:
+            result["failed"] += 1
+            result["recipients"].append({**b, "status": f"failed: {str(e)[:80]}"})
+        time.sleep(4)  # gentle pacing, stays well under Titan limits
+    st["offset"] = (off + count) % n
+    st["last_date"] = today
+    st["sent_today"] = result["sent"]
+    st["sent_total"] = st.get("sent_total", 0) + result["sent"]
+    st["last_failed"] = result["failed"]
+    st["list_size"] = n
+    save_email_state(st)
+    return result
 
 # ---------------- main ----------------
 def run_product(product, log):
@@ -513,6 +707,17 @@ def run_product(product, log):
         except Exception as e:
             entry["status"]["blogger"] = f"failed: {e}"
 
+        # Daily email outreach (GoDaddy Titan SMTP) — links today's blog post to next 10 buyers
+        try:
+            em = run_email_campaign(data, today, entry.get("blogger_url", ""), product)
+            entry["email"] = em
+            if em.get("enabled") and (em["sent"] or em["failed"]):
+                entry["status"]["email"] = f"{em['sent']} sent, {em['failed']} failed"
+            else:
+                entry["status"]["email"] = f"off ({em.get('note','')})" if not em.get("enabled") else em.get("note", "—")
+        except Exception as e:
+            entry["status"]["email"] = f"failed: {e}"
+
     except Exception as e:
         entry["status"]["generation"] = f"failed: {e}"
     log.append(entry)
@@ -542,6 +747,12 @@ if __name__ == "__main__":
         s = r["status"]
         lines.append(f"\n{r['product']}\n📝 {r.get('headline','—')}"
                      f"\nin: {s.get('linkedin','—')} | blog: {s.get('blogger','—')} | img: {s.get('image','—')}"
+                     f"\n📧 email: {s.get('email','—')}"
                      + (f"\n🔗 {r.get('linkedin_url','')}" if r.get('linkedin_url') else ""))
+        em = r.get("email") or {}
+        if em.get("recipients"):
+            who = ", ".join((x.get("company") or x.get("email")) +
+                            ("✓" if x.get("status") == "sent" else "✗") for x in em["recipients"])
+            lines.append("→ sent to: " + who[:600])
     telegram("\n".join(lines))
     print(json.dumps(results, indent=1, ensure_ascii=False))
