@@ -227,5 +227,29 @@
    "recipients": [],
    "note": "no SMTP_PASS secret"
   }
+ },
+ {
+  "date": "2026-07-16",
+  "product": "Rice Husk Ash Granules",
+  "status": {
+   "compliance": "ok",
+   "image": "ok (nano banana)",
+   "linkedin": "ok",
+   "blogger": "ok",
+   "email": "no SMTP_PASS secret"
+  },
+  "headline": "🏭 Stop Losing Heat and Fighting Dust in Your Steel Plant",
+  "caption": "🏭 Stop Losing Heat and Fighting Dust in Your Steel Plant\n\nKeeping molten steel hot before continuous casting is tough. Dealing with a dusty plant floor makes it much worse.\n\nWhy it matters:\n✔ Stops heat loss in the ladle fast\n✔ Keeps plant air clean with zero dust\n✔ Spreads easily over molten metal surfaces\n✔ Stays put under drafts without blowing away\n\nOur tested specification guarantees 90%+ amorphous SiO2 in a clean 1-5 mm granular form. Experts at IspatGuru share an important fact. A proper ladle covering compound reduces radiation heat loss on liquid steel before continuous casting. Our rice husk ash granules do exactly that, without the messy dust cloud.\n\nWe are a leading rice husk ash supplier India for metallurgical industries. We are your trusted ladle covering compound supplier. We actively serve as a rice husk ash exporter Turkey, Egypt, Vietnam, and South Korea. Protect your melt with the best molten steel insulation material. It works perfectly as your daily steel melting shop insulation powder.\n\nwww.rhaindia.com\n+91-7381757575\nContact us for bulk orders, OEM supply and export inquiries.\n\n#RiceHuskAshGranules #SteelIndustry #LadleCoveringCompound #RefractoryMaterials #RHAIndia #FoundrySupplier #SteelMeltingShop #IndustrialInsulation #ExportIndia",
+  "imagePrompt": "Photorealistic industrial steel plant scene showing small round grey rice husk ash granules being spread over glowing molten steel in a large ladle. In the foreground, a highly detailed industrial bulk bag sits clearly visible. The bag has a navy-blue top, a golden crown logo reading 'AMBIKA RHA', and a yellow bottom with the bold text 'RICE HUSK ASH GRANULES' and 'EXPORT QUALITY PRODUCT OF INDIA'. Clean, professional lighting, zero dust in the air. Text overlay: www.rhaindia.com.",
+  "image": "images/2026-07-16-rice-husk-ash-granules.png",
+  "linkedin_url": "https://www.linkedin.com/feed/update/urn:li:share:7483400236871196674",
+  "blogger_url": "https://www.rhaindia.com/blog/why-rice-husk-ash-granules-are-the-perfect-dust-free-ladle-covering-co",
+  "email": {
+   "enabled": true,
+   "sent": 0,
+   "failed": 0,
+   "recipients": [],
+   "note": "no SMTP_PASS secret"
+  }
  }
 ]
