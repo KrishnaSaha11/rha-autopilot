@@ -638,9 +638,10 @@ def run_email_campaign(data, today, blog_url, product):
     buyers = load_buyers()
     if not buyers:
         result["note"] = "no buyers loaded"; return result
+    forced = (os.environ.get("FORCE") or "").lower() in ("1", "true", "yes") or "--force" in sys.argv
     st = load_email_state()
-    if st.get("last_date") == today and st.get("sent_today"):
-        result["note"] = "already sent today"; return result
+    if st.get("last_date") == today and st.get("sent_today") and not forced:
+        result["note"] = "already sent today (use force to override)"; return result
     n = len(buyers)
     off = st.get("offset", 0) % n
     count = min(EMAILS_PER_DAY, n)
@@ -661,8 +662,9 @@ def run_email_campaign(data, today, blog_url, product):
             result["recipients"].append({**b, "status": f"failed: {str(e)[:80]}"})
         time.sleep(4)  # gentle pacing, stays well under Titan limits
     st["offset"] = (off + count) % n
+    same_day = (st.get("last_date") == today)
     st["last_date"] = today
-    st["sent_today"] = result["sent"]
+    st["sent_today"] = (st.get("sent_today", 0) if same_day else 0) + result["sent"]
     st["sent_total"] = st.get("sent_total", 0) + result["sent"]
     st["last_failed"] = result["failed"]
     st["list_size"] = n
