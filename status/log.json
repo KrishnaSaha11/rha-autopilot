@@ -418,5 +418,73 @@
    "recipients": [],
    "note": "already sent today"
   }
+ },
+ {
+  "date": "2026-07-18",
+  "product": "Rice Husk Powder",
+  "status": {
+   "compliance": "ok",
+   "image": "ok (nano banana)",
+   "linkedin": "ok",
+   "blogger": "ok",
+   "email": "6 sent, 0 failed"
+  },
+  "headline": "🪵 Making Better Particle Boards with Rice Husk Powder",
+  "caption": "🪵 Making Better Particle Boards with Rice Husk Powder\n\nMaking wood-polymer composites or particle boards? Finding good filler material can be tough, and wood dust is getting expensive.\n\nWe grind pure raw rice husk into a fine, organic powder. It is a brilliant, low-cost filler for board manufacturing.\n\nWhy it matters:\n\n✔ Cuts down your wood and resin costs.\n✔ Mixes smoothly into plastic and board composites.\n✔ Gives uniform strength across every board.\n✔ Saves trees by using renewable farm materials.\n\nOur rice husk powder is packed with natural cellulose and lignin. This makes it a great organic binder for your factory. Just to be clear, this is pure ground raw husk, not ash. It provides a very consistent grind for smooth production lines.\n\nNeed a reliable industrial raw material exporter India? We are a trusted bulk supplier for OEM manufacturers globally. We regularly ship this export quality product to composite plants in Vietnam, Turkey, UAE, Poland, and Malaysia.\n\nContact us for bulk orders, OEM supply and export inquiries.\n\n🌐 www.rhaindia.com\n📞 +91-7381757575\n\n#RiceHuskPowder #ParticleBoard #WPC #WoodPlasticComposite #IndustrialFiller #SustainableMaterials #RHAIndia #ExportQuality #RawMaterialSupplier",
+  "imagePrompt": "Photorealistic industrial marketing scene inside a modern wood-polymer composite (WPC) or particle board manufacturing plant. In the foreground, a large branded Ambika bag sits open, revealing fine, tan-colored ORGANIC powder (ground raw husk). The bag design features a navy blue top half with a golden crown and 'AMBIKA RHA' text, and a yellow bottom half with the exact text 'Rice Husk Powder' and 'EXPORT QUALITY PRODUCT OF INDIA'. In the background, out of focus, clean factory machinery processes composite boards. Warm, bright lighting. Text overlay in the corner: 'www.rhaindia.com'. NO steel, NO fire, NO grey ash.",
+  "image": "images/2026-07-18-rice-husk-powder.png",
+  "linkedin_url": "https://www.linkedin.com/feed/update/urn:li:share:7484287926147768320",
+  "blogger_url": "https://www.rhaindia.com/blog/why-rice-husk-powder-is-the-perfect-sustainable-filler-for-particle-bo",
+  "email": {
+   "enabled": true,
+   "sent": 6,
+   "failed": 0,
+   "recipients": [
+    {
+     "email": "info@qatarsteel.com.qa",
+     "company": "Qatar Steel",
+     "country": "Qatar",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "info@sqinsertec.com",
+     "company": "SQ Insertec Europe",
+     "country": "Spain",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "steeldirect@bluescopesteel.com",
+     "company": "BlueScope Steel",
+     "country": "Australia",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "info@solbmisr.com",
+     "company": "Suez Steel",
+     "country": "Egypt",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "marmara@marmarametal.com",
+     "company": "Marmara Metal",
+     "country": "Turkey",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "info@alkarawangroup.ae",
+     "company": "Al Karawan Refractories LLC",
+     "country": "UAE",
+     "name": "",
+     "status": "sent"
+    }
+   ],
+   "note": "",
+   "subject": "Why Rice Husk Powder is the Perfect Sustainable Filler for Particle Boards and WPC"
+  }
  }
 ]
