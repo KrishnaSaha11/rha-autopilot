@@ -42,6 +42,7 @@ FROM_NAME      = os.environ.get("FROM_NAME") or "RHA India — Ambika Biotech"
 EMAILS_PER_DAY = int(os.environ.get("EMAILS_PER_DAY") or "10")
 BUYER_CSV      = os.environ.get("BUYER_CSV") or ""       # whole CSV content stored as a GitHub secret (keeps list private)
 UNSUB_MAILTO   = (os.environ.get("UNSUB_MAILTO") or SMTP_USER).strip()
+EMAIL_BCC      = [e.strip() for e in (os.environ.get("EMAIL_BCC") or "").split(",") if e.strip()]  # monitoring copies
 EMAIL_STATE_PATH = "status/email_state.json"
 
 ROTATION = ["Rice Husk Ash Powder","Rice Husk Ash Granules","Rice Husk Ash Small Granules",
@@ -554,7 +555,7 @@ def build_email(name, subject, blog_url, product, blog_desc):
 Read the full article here:
 {cta_url}
 
-A quick note on who we are: {COMPANY} (brand: RHA India) manufactures and exports Rice Husk Ash and rice husk products from Sambalpur, India. Our RHA is high-silica (SiO2 92% min, tundish grade) and serves steel plants, foundries, refractories, and construction. We are export-ready with bulk supply and custom packaging.
+A quick note on who we are: {COMPANY} (brand: RHA India) manufactures and exports Rice Husk Ash and rice husk products from Sambalpur, India. Our RHA is high-silica (SiO2 85% minimum guaranteed, tundish grade) and serves steel plants, foundries, refractories, and construction. We are export-ready with bulk supply and custom packaging.
 
 If you would like a free sample, COA/TDS, or an FOB quotation, simply reply to this email.
 
@@ -582,7 +583,7 @@ You received this email because your company was identified as a potential indus
     <p style="margin:0 0 18px;font-size:15px;line-height:1.6">{safe(intro)}</p>
     <p style="margin:0 0 22px"><a href="{safe(cta_url)}" style="background:#C2571B;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:bold;display:inline-block">Read the full article →</a></p>
     <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#5A6672">
-      <b style="color:#22303C">{safe(COMPANY)}</b> (brand: RHA India) manufactures and exports Rice Husk Ash and rice husk products from Sambalpur, India. Our RHA is high-silica (<b>SiO₂ 92% min</b>, tundish grade) and serves steel plants, foundries, refractories and construction — export-ready, bulk supply, custom packaging.
+      <b style="color:#22303C">{safe(COMPANY)}</b> (brand: RHA India) manufactures and exports Rice Husk Ash and rice husk products from Sambalpur, India. Our RHA is high-silica (<b>SiO₂ 85% minimum guaranteed</b>, tundish grade) and serves steel plants, foundries, refractories and construction — export-ready, bulk supply, custom packaging.
     </p>
     <p style="margin:0 0 22px;font-size:14px;line-height:1.6">
       Would you like a free <b>sample</b>, <b>COA / TDS</b>, or an <b>FOB quotation</b>? Just reply to this email.
@@ -613,16 +614,17 @@ def send_one_email(to_email, subject, text, html):
     msg["List-Unsubscribe"] = f"<mailto:{UNSUB_MAILTO}?subject=unsubscribe>"
     msg.attach(MIMEText(text, "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
+    rcpts = [to_email] + EMAIL_BCC          # BCC copies for monitoring (hidden from buyer)
     ctx = ssl.create_default_context()
     if SMTP_PORT == 465:
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=60) as s:
             s.login(SMTP_USER, SMTP_PASS)
-            s.sendmail(SMTP_USER, [to_email], msg.as_string())
+            s.sendmail(SMTP_USER, rcpts, msg.as_string())
     else:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=60) as s:
             s.ehlo(); s.starttls(context=ctx); s.ehlo()
             s.login(SMTP_USER, SMTP_PASS)
-            s.sendmail(SMTP_USER, [to_email], msg.as_string())
+            s.sendmail(SMTP_USER, rcpts, msg.as_string())
 
 def run_email_campaign(data, today, blog_url, product):
     """Sends EMAILS_PER_DAY emails to the next rotating batch of buyers. Never raises."""
@@ -645,6 +647,7 @@ def run_email_campaign(data, today, blog_url, product):
     batch = [buyers[(off + i) % n] for i in range(count)]
     subject = "".join(ch for ch in (data.get("blogTitle") or data.get("headline") or "") if ord(ch) < 0x2600).strip()
     subject = (subject[:120] or f"{product} — RHA India").strip()
+    result["subject"] = subject
     blog_desc = re.sub(r"\s+", " ", (data.get("caption") or "").split("\n")[0]).strip()
     blog_desc = "".join(ch for ch in blog_desc if ord(ch) < 0x2600).strip()[:220]
     for b in batch:
@@ -782,8 +785,11 @@ if __name__ == "__main__":
         em = r.get("email") or {}
         who = ""
         if em.get("recipients"):
-            who = "\n📧 Sent to: " + ", ".join(
-                (x.get("company") or x.get("email")) + ("✓" if x.get("status") == "sent" else "✗")
+            who = f"\n\n📧 EMAIL SENT ({em.get('sent',0)} ok / {em.get('failed',0)} failed)"
+            if em.get("subject"): who += f"\n✉️ Subject: {em['subject']}"
+            who += "\n" + "\n".join(
+                f"{'✅' if x.get('status')=='sent' else '❌'} {x.get('company') or '—'} — {x.get('email','')}"
+                + ("" if x.get("status") == "sent" else f" ({x.get('status','')})")
                 for x in em["recipients"])
         detail = (
             f"📦 {r.get('product','')}\n"
