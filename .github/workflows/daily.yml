@@ -62,6 +62,7 @@ jobs:
           EMAILS_PER_DAY: ${{ secrets.EMAILS_PER_DAY }}   # optional; default 10
           BUYER_CSV: ${{ secrets.BUYER_CSV }}             # whole buyer CSV (keeps list private)
           UNSUB_MAILTO: ${{ secrets.UNSUB_MAILTO }}       # optional; default = SMTP_USER
+          EMAIL_BCC: ${{ secrets.EMAIL_BCC }}             # optional; comma-separated monitoring copies
         run: python autopost.py
 
       - name: Commit log + images + email state
