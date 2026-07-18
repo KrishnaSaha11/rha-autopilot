@@ -275,5 +275,29 @@
    "recipients": [],
    "note": "no SMTP_PASS secret"
   }
+ },
+ {
+  "date": "2026-07-18",
+  "product": "Rice Husk Pellets",
+  "status": {
+   "compliance": "ok",
+   "image": "ok (nano banana)",
+   "linkedin": "ok",
+   "blogger": "ok",
+   "email": "no SMTP_PASS secret"
+  },
+  "headline": "🔥 Keep Your Boiler Heat Steady with Uniform Pellets",
+  "caption": "🔥 Keep Your Boiler Heat Steady with Uniform Pellets\n\nRunning an industrial boiler is stressful when fuel burns unevenly. Loose biomass can cause frustrating temperature drops.\n\nWhy it matters:\n✔ Burns evenly for stable boiler heat.\n✔ Saves valuable factory storage space.\n✔ Feeds smoothly into automatic machines.\n✔ Lowers your plant carbon emissions.\n\nAt Ambika, we press raw husk into dense, uniform Rice Husk Pellets. Our tested specification shows a calorific value of 3,200 to 3,800 kcal/kg. This gives your boiler a predictable, hot fire without the mess of loose husk.\n\nAs a bulk rice husk supplier and industrial raw material exporter India, we ship globally. We safely deliver to boiler operators and biomass plants in the UAE, France, and Taiwan.\n\nwww.rhaindia.com\n📞 +91-7381757575\nContact us for bulk orders, OEM supply and export inquiries.\n\n#RiceHuskPellets #BiomassFuel #BoilerFuel #IndustrialHeating #RenewableEnergy #BiomassEnergy #GreenFuel #AmbikaBiotech #RHAIndia #ExportQuality",
+  "imagePrompt": "Photorealistic industrial marketing scene showing a clean, modern biomass boiler facility. In the foreground, a neat mound of BROWN cylindrical biomass fuel pellets (Rice Husk Pellets) rests next to a sturdy branded Ambika bag. The bag features a navy blue top, a golden crown logo 'AMBIKA RHA', and a yellow bottom reading 'RICE HUSK PELLETS' and 'EXPORT QUALITY PRODUCT OF INDIA'. NO molten steel, grey powder, or ash in this image. Crisp text overlay 'www.rhaindia.com'. Warm factory lighting, high-definition B2B commercial photography.",
+  "image": "images/2026-07-18-rice-husk-pellets.png",
+  "linkedin_url": "https://www.linkedin.com/feed/update/urn:li:share:7484129587124207616",
+  "blogger_url": "https://www.rhaindia.com/blog/how-uniform-rice-husk-pellets-prevent-temperature-drops-in-industrial-",
+  "email": {
+   "enabled": true,
+   "sent": 0,
+   "failed": 0,
+   "recipients": [],
+   "note": "no SMTP_PASS secret"
+  }
  }
 ]
