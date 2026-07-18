@@ -299,5 +299,100 @@
    "recipients": [],
    "note": "no SMTP_PASS secret"
   }
+ },
+ {
+  "date": "2026-07-18",
+  "product": "Rice Husk Ash Granules",
+  "status": {
+   "compliance": "ok",
+   "image": "ok (nano banana)",
+   "linkedin": "ok",
+   "blogger": "ok",
+   "email": "10 sent, 0 failed"
+  },
+  "headline": "🏭 Tired of Insulation Powder Blowing Away in Your Steel Plant?",
+  "caption": "🏭 Tired of Insulation Powder Blowing Away in Your Steel Plant?\n\nFine powder is great for keeping liquid steel hot. But strong plant drafts can blow it away before it even hits the ladle.\n\nWhy it matters:\n✔ Our rice husk ash granules drop straight down.\n✔ You get zero dust blowing in workers' faces.\n✔ The 1-5 mm granules spread easily over hot metal.\n✔ You save money because no material is wasted.\n\nLadle covering compounds reduce radiation heat loss on liquid steel before continuous casting. This is a well-known industry fact noted by IspatGuru. Using granules means your high silica rice husk ash actually stays on the melt to trap that heat.\n\nAs a top ladle covering compound supplier, we provide consistent rice husk ash granules for your plant. They act as a highly effective metallurgical insulation powder without the dusty mess. We regularly ship our high silica rice husk ash worldwide. Looking for a reliable rice husk ash exporter Japan, Turkey, UAE, or South Korea? We are ready to help.\n\nwww.rhaindia.com\n+91-7381757575\nContact us for bulk orders, OEM supply and export inquiries.\n\n#RiceHuskAsh #SteelIndustry #Foundry #LadleCovering #Metallurgy #ExportIndia #AmbikaRHA",
+  "imagePrompt": "Photorealistic industrial marketing scene inside a busy steel melting shop. Small ROUND grey rice husk ash granules are being spread evenly over glowing liquid metal in a ladle, with no dust flying in the air. In the foreground, a branded Ambika bag sits clearly. The bag has a navy blue top with a golden crown and 'AMBIKA RHA', a yellow bottom with 'Rice Husk Ash Granules' and 'EXPORT QUALITY PRODUCT OF INDIA'. Bold text overlay 'www.rhaindia.com'. Highly detailed, professional B2B marketing style.",
+  "image": "images/2026-07-18-rice-husk-ash-granules.png",
+  "linkedin_url": "https://www.linkedin.com/feed/update/urn:li:share:7484168012695187456",
+  "blogger_url": "https://www.rhaindia.com/blog/why-rice-husk-ash-granules-are-the-dust-free-choice-for-steel-ladle-in",
+  "email": {
+   "enabled": true,
+   "sent": 10,
+   "failed": 0,
+   "recipients": [
+    {
+     "email": "dubai@bisley.biz",
+     "company": "Bisley & Company Pty Ltd",
+     "country": "Australia",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "commercial@comap-sas.com",
+     "company": "COMAP S.A.S.",
+     "country": "France",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "hamag@hamag.de",
+     "company": "HAMAG Vertriebs GmbH",
+     "country": "Germany",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "info@eccotec-gmbh.de",
+     "company": "ECCOTEC Europe GmbH",
+     "country": "Germany",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "info@minreco.de",
+     "company": "Minreco GmbH",
+     "country": "Germany",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "info@ezzsteel.com",
+     "company": "Ezz Steel Group",
+     "country": "Egypt",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "sales@intocast.de",
+     "company": "Intocast AG",
+     "country": "Germany",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "brita.benkel@imerys.com",
+     "company": "Imerys Metalcasting",
+     "country": "Germany",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "info@dalmiagsb.com",
+     "company": "Dalmia GSB Refractories",
+     "country": "Germany",
+     "name": "",
+     "status": "sent"
+    },
+    {
+     "email": "info@prosimet.com",
+     "company": "Prosimet S.p.A.",
+     "country": "Italy",
+     "name": "",
+     "status": "sent"
+    }
+   ],
+   "note": ""
+  }
  }
 ]
