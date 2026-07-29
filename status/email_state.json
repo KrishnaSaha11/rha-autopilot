@@ -1,8 +1,8 @@
 {
- "offset": 10,
- "last_date": "2026-07-28",
+ "offset": 16,
+ "last_date": "2026-07-29",
  "sent_today": 6,
- "sent_total": 82,
+ "sent_total": 88,
  "last_failed": 0,
  "list_size": 36
 }
